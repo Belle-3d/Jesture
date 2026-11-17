@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumaire · A DJ controller you play in mid-air</title>
+</head>
+
+<body>
+  <div id="app">
+    <video id="input_video" style="display: none;"></video>
+    <canvas id="output_canvas"></canvas>
+
+    <!-- DJ Control Panel -->
+    <div id="track-panel">
+      <!-- Branding Header -->
+      <div class="brand-header">
+        <h1 class="brand-name">Lumaire</h1>
+        <p class="brand-tagline">A DJ controller you play in mid-air</p>
+      </div>
+
+      <!-- Track A -->
+      <div class="track-control track-a">
+        <label>🟢 Track A:</label>
+        <input type="file" id="track-a-input" accept="audio/*">
+      </div>
+      <div class="waveform waveform-a" data-deck="A">
+        <div class="waveform-label">Full track</div>
+        <canvas class="waveform-overview-canvas" aria-label="Track A overview"></canvas>
+        <div class="waveform-times">
+          <span class="waveform-start">0:00</span>
+          <span class="waveform-remaining">−0:00</span>
+          <span class="waveform-total">0:00</span>
+        </div>
+        <div class="waveform-detail" role="img" aria-label="Track A waveform"></div>
+        <div class="waveform-times">
+          <span class="waveform-window-start">—</span>
+          <span class="waveform-elapsed">0:00</span>
+          <span class="waveform-window-end">—</span>
+        </div>
+        <div class="waveform-status"></div>
+      </div>
+
+      <!-- Track B -->
+      <div class="track-control track-b">
+        <label>🔴 Track B:</label>
+        <input type="file" id="track-b-input" accept="audio/*">
+      </div>
+      <div class="waveform waveform-b" data-deck="B">
+        <div class="waveform-label">Full track</div>
+        <canvas class="waveform-overview-canvas" aria-label="Track B overview"></canvas>
+        <div class="waveform-times">
+          <span class="waveform-start">0:00</span>
+          <span class="waveform-remaining">−0:00</span>
+          <span class="waveform-total">0:00</span>
+        </div>
+        <div class="waveform-detail" role="img" aria-label="Track B waveform"></div>
+        <div class="waveform-times">
+          <span class="waveform-window-start">—</span>
+          <span class="waveform-elapsed">0:00</span>
+          <span class="waveform-window-end">—</span>
+        </div>
+        <div class="waveform-status"></div>
+      </div>
+
+      <!-- Individual Play Buttons -->
+      <div class="play-buttons">
+        <button id="play-track-a-btn" class="play-all-btn">▶️ Play A</button>
+        <button id="play-track-b-btn" class="play-all-btn">▶️ Play B</button>
+      </div>
+
+      <!-- Status Displays -->
+      <div class="status-row">
+        <div id="master-volume-display" class="status-display master">Master: 70%</div>
+        <div id="crossfader-display" class="status-display crossfader">Crossfader: 50%</div>
+      </div>
+      <div class="status-row">
+        <div id="bass-display" class="status-display bass">Bass: 0dB</div>
+        <div id="treble-display" class="status-display treble">Treble: 0dB</div>
+      </div>
+
+      <!-- Control Hints (Collapsible) -->
+      <div id="hints-panel" class="hints">
+        <div id="hints-header" class="hints-header">
+          <span>Gesture Controls</span>
+          <span class="hints-toggle">▼</span>
+        </div>
+        <div id="hints-content" class="hints-content">
+          <div class="hint-section">
+            <span class="hint-icon">🖐️</span>
+            <div class="hint-content">
+              <strong>Right Hand</strong>
+              <p>Pinch = Play/Pause</p>
+              <p>Pinch + ⭥ = Volume</p>
+            </div>
+          </div>
+          <div class="hint-section">
+            <span class="hint-icon">🖐️</span>
+            <div class="hint-content">
+              <strong>Left Hand</strong>
+              <p>Pinch + ⭤ = Crossfader</p>
+            </div>
+          </div>
+          <div class="hint-section">
+            <span class="hint-icon">✊</span>
+            <div class="hint-content">
+              <strong>Fist Gestures</strong>
+              <p>Right = Bass | Left = Treble</p>
+            </div>
+          </div>
+          <div class="hint-section">
+            <span class="hint-icon">👏</span>
+            <div class="hint-content">
+              <strong id="hint-clap-title">Clap</strong>
+              <p id="hint-clap">Clap = Beat alignment</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" id="edit-cues-btn" class="edit-cues-btn">Edit Cues</button>
+    <aside id="cue-panel" class="cue-panel" hidden aria-label="Cue preparation">
+      <div class="cue-panel-header">
+        <h2 class="cue-panel-title">Cue Preparation</h2>
+        <button type="button" id="cue-panel-close" class="cue-panel-close" aria-label="Close cue panel">×</button>
+      </div>
+      <div class="cue-deck-toggle" role="tablist" aria-label="Select deck">
+        <button type="button" class="cue-deck-btn is-active" data-deck="A">Deck A</button>
+        <button type="button" class="cue-deck-btn" data-deck="B">Deck B</button>
+      </div>
+      <div class="cue-slots">
+        <div class="cue-slot" data-slot="1">
+          <div class="cue-slot-header">
+            <span class="cue-slot-label">Cue 1</span>
+            <span class="cue-slot-value" data-cue-value>Empty</span>
+          </div>
+          <label class="cue-time-label">Timestamp
+            <input type="text" class="cue-time-input" data-cue-input placeholder="m:ss" inputmode="numeric" autocomplete="off">
+          </label>
+          <div class="cue-slot-actions">
+            <button type="button" class="cue-action-btn" data-cue-save>Save cue</button>
+            <button type="button" class="cue-action-btn cue-action-clear" data-cue-clear>Clear cue</button>
+          </div>
+        </div>
+        <div class="cue-slot" data-slot="2">
+          <div class="cue-slot-header">
+            <span class="cue-slot-label">Cue 2</span>
+            <span class="cue-slot-value" data-cue-value>Empty</span>
+          </div>
+          <label class="cue-time-label">Timestamp
+            <input type="text" class="cue-time-input" data-cue-input placeholder="m:ss" inputmode="numeric" autocomplete="off">
+          </label>
+          <div class="cue-slot-actions">
+            <button type="button" class="cue-action-btn" data-cue-save>Save cue</button>
+            <button type="button" class="cue-action-btn cue-action-clear" data-cue-clear>Clear cue</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

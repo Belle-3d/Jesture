@@ -696,21 +696,35 @@ export class AudioEngine {
         if (player && player.loaded) {
             let offset = 0;
             const rate = this.getPlaybackRate(player) || 1;
+            const duration = player.buffer ? player.buffer.duration : 0;
 
             if (pauseState.isPaused && pauseState.pauseTime > 0) {
                 // pauseTime stores the buffer position in seconds already
-                const duration = player.buffer ? player.buffer.duration : 0;
                 offset = duration > 0 ? pauseState.pauseTime % duration : 0;
                 console.log(`Track ${track} resuming from ${offset.toFixed(2)}s (rate=${rate.toFixed(3)})`);
             } else {
                 console.log(`Track ${track} starting from beginning`);
             }
 
-            // IMPORTANT: startTime must satisfy elapsed * rate = bufferPosition
-            // therefore startTime = now - (bufferPosition / rate)
-            pauseState.startTime = Tone.now() - (offset / rate);
+            // A looping player is created with loopEnd 0, so a later start snaps back
+            // to the beginning. Give the loop the real buffer length, stop any source
+            // still running, and start slightly ahead so the offset is actually used.
+            if (duration > 0 && !(Number(player.loopEnd) > 0)) {
+                player.loopEnd = Math.max(0, duration - 1e-4);
+            }
+            if (player.state === 'started') {
+                try { player.stop(); } catch (e) { /* already stopped */ }
+            }
+            if (player._activeSources) {
+                [...player._activeSources].forEach((source) => {
+                    try { source.stop(); } catch (e) { /* source already ended */ }
+                });
+            }
+            // startTime must satisfy elapsed * rate = bufferPosition
+            const when = Tone.now() + 0.05;
+            pauseState.startTime = when - (offset / rate);
             pauseState.isPaused = false;
-            player.start(undefined, offset);
+            player.start(when, offset);
 
             if (track === 'A') {
                 stateStore.setState({ trackAPlaying: true });

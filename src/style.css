@@ -512,6 +512,8 @@ body {
 .cue-panel-close,
 .cue-panel-save,
 .cue-panel-clear,
+.cue-panel-jump,
+.cue-panel-play,
 .cue-panel-deck {
   margin: 0;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -586,8 +588,14 @@ body {
   gap: 8px;
 }
 
+.cue-panel-actions + .cue-panel-actions {
+  margin-top: 8px;
+}
+
 .cue-panel-save,
-.cue-panel-clear {
+.cue-panel-clear,
+.cue-panel-jump,
+.cue-panel-play {
   flex: 1;
   padding: 7px 8px;
 }

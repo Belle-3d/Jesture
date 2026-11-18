@@ -23,6 +23,8 @@ function slotEls(root, slot) {
         input: node?.querySelector('[data-cue-input]'),
         save: node?.querySelector('[data-cue-save]'),
         clear: node?.querySelector('[data-cue-clear]'),
+        jump: node?.querySelector('[data-cue-jump]'),
+        play: node?.querySelector('[data-cue-play]'),
     };
 }
 
@@ -91,6 +93,26 @@ function formatCue(seconds) {
 
 function cueInTrack(seconds, duration) {
     return typeof seconds === 'number' && isFinite(seconds) && seconds >= 0 && duration > 0 && seconds - duration <= 1e-3;
+}
+
+function savedCue(deck, seconds) {
+    return cueInTrack(seconds, trackDuration(deck)) ? seconds : null;
+}
+
+async function jumpToCue(deck, seconds) {
+    if (savedCue(deck, seconds) == null) return;
+    const player = audioEngine.playerFor(deck);
+    if (player && player.state === 'started') await audioEngine.pauseTrack(deck);
+    audioEngine.seekTrack(deck, seconds);
+}
+
+async function playFromCue(deck, seconds) {
+    if (savedCue(deck, seconds) == null) return;
+    await audioEngine.init();
+    const player = audioEngine.playerFor(deck);
+    if (player && player.state === 'started') await audioEngine.pauseTrack(deck);
+    audioEngine.seekTrack(deck, seconds);
+    await audioEngine.resumeTrack(deck);
 }
 
 function render(root) {
@@ -168,6 +190,8 @@ export function initCuePanel() {
             cueState[cueState.deck][slot] = null;
             render(panel);
         });
+        els.jump?.addEventListener('click', () => jumpToCue(cueState.deck, cueState[cueState.deck][slot]));
+        els.play?.addEventListener('click', () => playFromCue(cueState.deck, cueState[cueState.deck][slot]));
     }
 
     const clearDeck = (deck) => {

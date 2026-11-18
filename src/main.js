@@ -6,6 +6,7 @@ import { visualEngine } from './visualEngine'
 import { audioEngine } from './audioEngine'
 import { waveform } from './waveform'
 import { stateStore } from './stateStore'
+import { initCuePanel } from './cuePanel'
 
 const videoElement = document.getElementById('input_video')
 const canvasElement = document.getElementById('output_canvas')
@@ -25,6 +26,7 @@ const hintsHeader = document.getElementById('hints-header')
 // Initialize Visual Engine
 visualEngine.init(canvasElement);
 waveform.init();
+initCuePanel();
 
 // Initialize Audio Engine on user interaction
 document.body.addEventListener('click', async () => {

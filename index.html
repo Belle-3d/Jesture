@@ -120,6 +120,39 @@
         </div>
       </div>
     </div>
+
+    <button id="edit-cues-btn" class="cue-panel-toggle" type="button">Edit Cues</button>
+
+    <aside id="cue-panel" class="cue-panel" hidden>
+      <div class="cue-panel-header">
+        <h2 class="cue-panel-title">Cue Preparation</h2>
+        <button id="cue-panel-close" class="cue-panel-close" type="button">Close</button>
+      </div>
+      <div class="cue-panel-decks" role="tablist" aria-label="Deck">
+        <button type="button" class="cue-panel-deck cue-panel-active" data-deck="A" role="tab">Deck A</button>
+        <button type="button" class="cue-panel-deck" data-deck="B" role="tab">Deck B</button>
+      </div>
+      <div class="cue-panel-slots">
+        <div class="cue-panel-slot" data-slot="1">
+          <div class="cue-panel-slot-label">Cue 1</div>
+          <div class="cue-panel-time" data-cue-value>—:——</div>
+          <input class="cue-panel-input" data-cue-input type="text" inputmode="numeric" placeholder="0:00" aria-label="Cue 1 timestamp">
+          <div class="cue-panel-actions">
+            <button type="button" class="cue-panel-save" data-cue-save>Save</button>
+            <button type="button" class="cue-panel-clear" data-cue-clear>Clear</button>
+          </div>
+        </div>
+        <div class="cue-panel-slot" data-slot="2">
+          <div class="cue-panel-slot-label">Cue 2</div>
+          <div class="cue-panel-time" data-cue-value>—:——</div>
+          <input class="cue-panel-input" data-cue-input type="text" inputmode="numeric" placeholder="0:00" aria-label="Cue 2 timestamp">
+          <div class="cue-panel-actions">
+            <button type="button" class="cue-panel-save" data-cue-save>Save</button>
+            <button type="button" class="cue-panel-clear" data-cue-clear>Clear</button>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

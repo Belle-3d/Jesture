@@ -101,16 +101,14 @@ function savedCue(deck, seconds) {
 
 async function jumpToCue(deck, seconds) {
     if (savedCue(deck, seconds) == null) return;
-    const player = audioEngine.playerFor(deck);
-    if (player && player.state === 'started') await audioEngine.pauseTrack(deck);
+    await audioEngine.pauseTrack(deck);
     audioEngine.seekTrack(deck, seconds);
 }
 
 async function playFromCue(deck, seconds) {
     if (savedCue(deck, seconds) == null) return;
     await audioEngine.init();
-    const player = audioEngine.playerFor(deck);
-    if (player && player.state === 'started') await audioEngine.pauseTrack(deck);
+    await audioEngine.pauseTrack(deck);
     audioEngine.seekTrack(deck, seconds);
     await audioEngine.resumeTrack(deck);
 }

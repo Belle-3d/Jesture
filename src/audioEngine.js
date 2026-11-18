@@ -25,8 +25,8 @@ export class AudioEngine {
         this.trackBBPM = null;
         // Pause state tracking for resume functionality
         this.pauseState = {
-            A: { isPaused: false, pauseTime: 0, startTime: 0 },
-            B: { isPaused: false, pauseTime: 0, startTime: 0 }
+            A: { isPaused: false, pauseTime: 0, startTime: 0, audibleAt: 0 },
+            B: { isPaused: false, pauseTime: 0, startTime: 0, audibleAt: 0 }
         };
 
         // Subscribe to state changes
@@ -561,7 +561,7 @@ export class AudioEngine {
         }
 
         // Reset pause state for this track
-        this.pauseState[track] = { isPaused: false, pauseTime: 0, startTime: 0 };
+        this.pauseState[track] = { isPaused: false, pauseTime: 0, startTime: 0, audibleAt: 0 };
 
         // Create new player with promise-based loading
         // Connect through EQ chain: Player -> Treble -> Bass -> Destination
@@ -667,14 +667,13 @@ export class AudioEngine {
         const player = track === 'A' ? this.trackAPlayer : this.trackBPlayer;
         const pauseState = this.pauseState[track];
 
-        if (player && player.state === 'started') {
-            const elapsed = Tone.now() - pauseState.startTime;
-            const rate = this.getPlaybackRate(player) || 1;
-            const duration = player.buffer ? player.buffer.duration : 0;
-            // store actual buffer position (in seconds), accounting for playbackRate
-            const bufferPos = duration > 0 ? ((elapsed * rate) % duration + duration) % duration : 0;
+        const scheduled = !pauseState.isPaused && pauseState.audibleAt > Tone.now();
+        if (player && player.loaded && (player.state === 'started' || scheduled)) {
+            // Same clock as the waveform, so a pause during a scheduled start keeps the cue, including 0.
+            const bufferPos = this.getTrackPosition(track);
             pauseState.pauseTime = bufferPos;
             pauseState.isPaused = true;
+            pauseState.audibleAt = 0;
             player.stop();
 
             if (track === 'A') {
@@ -682,7 +681,7 @@ export class AudioEngine {
             } else {
                 stateStore.setState({ trackBPlaying: false });
             }
-            console.log(`Track ${track} paused at buffer position ${bufferPos.toFixed(2)}s (elapsed=${elapsed.toFixed(2)}s, rate=${rate.toFixed(3)})`);
+            console.log(`Track ${track} paused at buffer position ${bufferPos.toFixed(2)}s`);
         }
     }
 
@@ -694,35 +693,28 @@ export class AudioEngine {
         const pauseState = this.pauseState[track];
 
         if (player && player.loaded) {
-            let offset = 0;
             const rate = this.getPlaybackRate(player) || 1;
             const duration = player.buffer ? player.buffer.duration : 0;
+            // A paused cue of 0 is a real offset. Only an unpaused deck starts at the beginning.
+            const offset = pauseState.isPaused && duration > 0
+                ? ((pauseState.pauseTime % duration) + duration) % duration
+                : 0;
+            console.log(pauseState.isPaused
+                ? `Track ${track} resuming from ${offset.toFixed(2)}s (rate=${rate.toFixed(3)})`
+                : `Track ${track} starting from beginning`);
 
-            if (pauseState.isPaused && pauseState.pauseTime > 0) {
-                // pauseTime stores the buffer position in seconds already
-                offset = duration > 0 ? pauseState.pauseTime % duration : 0;
-                console.log(`Track ${track} resuming from ${offset.toFixed(2)}s (rate=${rate.toFixed(3)})`);
-            } else {
-                console.log(`Track ${track} starting from beginning`);
-            }
-
-            // A looping player is created with loopEnd 0, so a later start snaps back
-            // to the beginning. Give the loop the real buffer length, stop any source
-            // still running, and start slightly ahead so the offset is actually used.
+            // loopEnd 0 makes a looping Player snap to the start. Set it through the public setter.
             if (duration > 0 && !(Number(player.loopEnd) > 0)) {
                 player.loopEnd = Math.max(0, duration - 1e-4);
             }
-            if (player.state === 'started') {
-                try { player.stop(); } catch (e) { /* already stopped */ }
-            }
-            if (player._activeSources) {
-                [...player._activeSources].forEach((source) => {
-                    try { source.stop(); } catch (e) { /* source already ended */ }
-                });
-            }
-            // startTime must satisfy elapsed * rate = bufferPosition
+            // Tone 15.1.22: restart() is a no-op unless state at that time is already
+            // "started", and seek() stop-starts on one sample. Stop a running player,
+            // then start() slightly later so the offset is the only source playing.
             const when = Tone.now() + 0.05;
+            if (player.state === 'started' || pauseState.audibleAt > Tone.now()) player.stop();
+            pauseState.pauseTime = offset;
             pauseState.startTime = when - (offset / rate);
+            pauseState.audibleAt = when;
             pauseState.isPaused = false;
             player.start(when, offset);
 
@@ -771,11 +763,11 @@ export class AudioEngine {
         const duration = player.buffer.duration || 0;
         if (!(duration > 0)) return 0;
         const wrap = (value) => ((value % duration) + duration) % duration;
-        const playing = !pause.isPaused && player.state === 'started';
-        if (!playing) return wrap(pause.pauseTime || 0);
-        const elapsed = Tone.now() - pause.startTime;
         const rate = this.getPlaybackRate(player) || 1;
-        return wrap(elapsed * rate);
+        // Hold the stored offset, including 0, until a scheduled start() becomes audible.
+        const waiting = !pause.isPaused && pause.audibleAt > Tone.now();
+        if (pause.isPaused || player.state !== 'started' || waiting) return wrap(pause.pauseTime || 0);
+        return wrap((Tone.now() - pause.startTime) * rate);
     }
 
     /**

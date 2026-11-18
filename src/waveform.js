@@ -1,5 +1,6 @@
 import WaveSurfer from 'wavesurfer.js';
 import { audioEngine } from './audioEngine';
+import { cueMarkers } from './cuePanel';
 
 const DECKS = ['A', 'B'];
 const VIEW_SPAN = 24;
@@ -103,10 +104,15 @@ class Waveform {
             const detail = root?.querySelector('.waveform-detail');
             const overview = root?.querySelector('.waveform-overview-canvas');
             if (!root || !detail || !overview) continue;
+            if (getComputedStyle(root).position === 'static') root.style.position = 'relative';
+            const cueOverlay = document.createElement('canvas');
+            cueOverlay.style.cssText = 'position:absolute;pointer-events:none;z-index:2;';
+            root.appendChild(cueOverlay);
             this.views[deck] = {
                 root,
                 detail,
                 overview,
+                cueOverlay,
                 start: root.querySelector('.waveform-start'),
                 remaining: root.querySelector('.waveform-remaining'),
                 total: root.querySelector('.waveform-total'),
@@ -328,6 +334,7 @@ class Waveform {
         } else {
             this.drawPlaceholder(overviewCtx, overview.width, overview.height, overview.dpr);
         }
+        this.drawDetailMarkers(deck, duration);
 
         view.root.classList.toggle('ready', !!ready);
         if (view.start) view.start.textContent = '0:00';
@@ -373,10 +380,50 @@ class Waveform {
         ctx.lineWidth = Math.max(1, dpr);
         ctx.strokeRect(x0 + ctx.lineWidth / 2, ctx.lineWidth / 2, Math.max(1, boxWidth - ctx.lineWidth), Math.max(1, height - ctx.lineWidth));
 
+        for (const marker of cueMarkers(deck)) {
+            if (!(marker.time >= 0) || marker.time > duration + 1e-3) continue;
+            const x = Math.min(width - 1, Math.max(0, (Math.min(marker.time, duration) / duration) * width));
+            this.drawCueLine(ctx, x, height, marker.color, dpr);
+        }
+
         const playX = Math.min(width - 1, Math.max(0, (position / duration) * width));
         ctx.fillStyle = PLAYHEAD[deck];
         const lineWidth = Math.max(1, Math.round(dpr));
         ctx.fillRect(playX - lineWidth / 2, 0, lineWidth, height);
+    }
+
+    drawCueLine(ctx, x, height, color, dpr) {
+        const lineWidth = Math.max(1, Math.round(dpr));
+        ctx.fillStyle = color;
+        ctx.fillRect(x - lineWidth / 2, 0, lineWidth, height);
+    }
+
+    drawDetailMarkers(deck, duration) {
+        const view = this.views[deck];
+        const state = this.decks[deck];
+        const canvas = view?.cueOverlay;
+        if (!canvas || !state) return;
+        const box = view.detail.getBoundingClientRect();
+        const root = view.root.getBoundingClientRect();
+        canvas.style.left = `${box.left - root.left}px`;
+        canvas.style.top = `${box.top - root.top}px`;
+        canvas.style.width = `${box.width}px`;
+        canvas.style.height = `${box.height}px`;
+        const sized = resizeCanvas(canvas);
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, sized.width, sized.height);
+        const ws = state.wavesurfer;
+        if (!ws || !state.surferReady || !(duration > 0) || !(box.width > 0)) return;
+        const cssWidth = ws.getWidth() || box.width;
+        const px = cssWidth / VIEW_SPAN;
+        const scroll = ws.getScroll();
+        const scale = sized.width / cssWidth;
+        for (const marker of cueMarkers(deck)) {
+            if (!(marker.time >= 0) || marker.time > duration + 1e-3) continue;
+            const x = ((marker.time + state.padSeconds) * px - scroll) * scale;
+            if (x < -sized.dpr || x > sized.width + sized.dpr) continue;
+            this.drawCueLine(ctx, x, sized.height, marker.color, sized.dpr);
+        }
     }
 }
 

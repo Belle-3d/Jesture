@@ -99,6 +99,18 @@ function savedCue(deck, seconds) {
     return cueInTrack(seconds, trackDuration(deck)) ? seconds : null;
 }
 
+const CUE_COLORS = { 1: '#F17BC6', 2: '#57DAB0' };
+
+export function cueMarkers(deck) {
+    const cues = cueState[deck];
+    if (!cues) return [];
+    const markers = [];
+    for (const slot of SLOTS) {
+        if (typeof cues[slot] === 'number') markers.push({ time: cues[slot], color: CUE_COLORS[slot] });
+    }
+    return markers;
+}
+
 async function jumpToCue(deck, seconds) {
     if (savedCue(deck, seconds) == null) return;
     await audioEngine.pauseTrack(deck);

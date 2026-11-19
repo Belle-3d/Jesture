@@ -81,6 +81,8 @@ export class VisualEngine {
 
         // Easter Egg: Check for middle finger gesture
         this.drawEasterEgg(handsData, width, height);
+
+        this.drawFingerPoseDebug(handsData, xOffset, yOffset, scaledWidth, scaledHeight);
     }
 
     /**
@@ -425,6 +427,29 @@ export class VisualEngine {
         if (stroke) { ctx.stroke(); }
     }
 
+    drawFingerPoseDebug(handsData, dx, dy, dw, dh) {
+        if (!handsData || !handsData.length) return;
+        const poseLabel = { ONE_FINGER: 'CUE 1', TWO_FINGERS: 'CUE 2' };
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.font = '700 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'black';
+        ctx.fillStyle = '#ffffff';
+        handsData.forEach((hand) => {
+            const text = poseLabel[hand.fingerPose];
+            if (!text || !hand.landmarks) return;
+            const tip = hand.landmarks[hand.fingerPose === 'TWO_FINGERS' ? 12 : 8];
+            const x = (1 - tip.x) * dw + dx;
+            const y = tip.y * dh + dy - 18;
+            ctx.strokeText(text, x, y);
+            ctx.fillText(text, x, y);
+        });
+        ctx.restore();
+    }
+
     drawHandInfo(handsData, width, height, dx, dy, dw, dh) {
         if (!handsData) return;
 
@@ -441,12 +466,15 @@ export class VisualEngine {
             const x = (1 - wrist.x) * dw + dx;
             const y = wrist.y * dh + dy;
 
-            // Show hand label and control type
+            // Show hand label and control type. Fist tags stay off the hand;
+            // a cue pose is labeled at the fingertip instead.
             const controlType = hand.controlType || '';
-            const text = `${hand.label} | ${controlType}`;
-
-            this.ctx.strokeText(text, x, y);
-            this.ctx.fillText(text, x, y);
+            const cueLabel = hand.fingerPose === 'ONE_FINGER' || hand.fingerPose === 'TWO_FINGERS';
+            if (!cueLabel && !controlType.includes('(Fist)')) {
+                const text = `${hand.label} | ${controlType}`;
+                this.ctx.strokeText(text, x, y);
+                this.ctx.fillText(text, x, y);
+            }
 
             // Draw Pinch Indicators
             if (hand.pinches && hand.pinches.index) {

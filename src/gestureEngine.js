@@ -123,6 +123,10 @@ export class GestureEngine {
             // 3. Easter Egg: Middle Finger Detection
             const isMiddleFinger = this.detectMiddleFinger(landmarks);
 
+            // Test-only pose. Not used by any control path.
+            const fingerPose = this.detectFingerCount(landmarks);
+            const cuePose = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
+
             // Get control state for this hand
             const controlState = this.controlState[label];
             const eqState = this.eqControlState[label];
@@ -131,7 +135,7 @@ export class GestureEngine {
             let controlType = label === 'Right' ? 'Master Volume' : 'Crossfader';
             let isControlling = controlState.isPinching && controlState.hasMoved;
 
-            if (gesture === 'Closed' && !pinches.index) {
+            if (gesture === 'Closed' && !pinches.index && !cuePose) {
                 controlType = label === 'Right' ? 'Bass (Fist)' : 'Treble (Fist)';
                 isControlling = eqState.isFist;
             }
@@ -145,6 +149,7 @@ export class GestureEngine {
                 isControlling,
                 controlType,
                 isMiddleFinger,
+                fingerPose,
                 clap: clapDetected 
             });
 
@@ -163,10 +168,10 @@ export class GestureEngine {
             // =============================================
             if (label === 'Right') {
                 // RIGHT HAND: Play/Pause (tap) + Master Volume (pinch drag)
-                this.handleRightHandGesture(landmarks, pinches, gesture);
+                this.handleRightHandGesture(landmarks, pinches, gesture, cuePose);
             } else {
                 // LEFT HAND: Crossfader control (pinch drag)
-                this.handleLeftHandGesture(landmarks, pinches, gesture);
+                this.handleLeftHandGesture(landmarks, pinches, gesture, cuePose);
             }
 
             this.lastPinchState[label] = pinches;
@@ -249,18 +254,75 @@ export class GestureEngine {
     }
 
     /**
+     * Cosine of the angle at `joint` between prev and next.
+     * Straight finger ≈ -1; a bent joint moves toward 0 and then positive.
+     */
+    jointBend(prev, joint, next) {
+        const ax = prev.x - joint.x;
+        const ay = prev.y - joint.y;
+        const az = (prev.z || 0) - (joint.z || 0);
+        const bx = next.x - joint.x;
+        const by = next.y - joint.y;
+        const bz = (next.z || 0) - (joint.z || 0);
+        const magA = Math.hypot(ax, ay, az) || 1;
+        const magB = Math.hypot(bx, by, bz) || 1;
+        return (ax * bx + ay * by + az * bz) / (magA * magB);
+    }
+
+    fingerReach(landmarks, mcp, tip) {
+        const knuckle = landmarks[mcp];
+        const tipPoint = landmarks[tip];
+        return Math.hypot(tipPoint.x - knuckle.x, tipPoint.y - knuckle.y, (tipPoint.z || 0) - (knuckle.z || 0));
+    }
+
+    /**
+     * Extended when the PIP itself is straight and the tip reaches past the knuckle.
+     * The DIP is allowed to hook slightly, which is how a single pointing finger usually sits.
+     * Thumb is not considered.
+     */
+    isFingerExtended(landmarks, mcp, pip, dip, tip) {
+        const knuckle = landmarks[mcp];
+        const pipJoint = landmarks[pip];
+        const dipJoint = landmarks[dip];
+        const tipPoint = landmarks[tip];
+        const tipReach = this.fingerReach(landmarks, mcp, tip);
+        const pipReach = Math.hypot(pipJoint.x - knuckle.x, pipJoint.y - knuckle.y, (pipJoint.z || 0) - (knuckle.z || 0));
+        const straightPip = this.jointBend(knuckle, pipJoint, dipJoint) < -0.35;
+        const hookedDip = this.jointBend(pipJoint, dipJoint, tipPoint) > 0.45;
+        return straightPip && !hookedDip && tipReach > pipReach * 1.08;
+    }
+
+    isFingerCurled(landmarks, mcp, pip, dip, tip) {
+        const bend = this.jointBend(landmarks[mcp], landmarks[pip], landmarks[dip]);
+        return bend > -0.4 && !this.isFingerExtended(landmarks, mcp, pip, dip, tip);
+    }
+
+    detectFingerCount(landmarks) {
+        if (!landmarks || landmarks.length < 21) return 'NONE';
+        const index = this.isFingerExtended(landmarks, 5, 6, 7, 8);
+        const middle = this.isFingerExtended(landmarks, 9, 10, 11, 12);
+        const ring = this.isFingerCurled(landmarks, 13, 14, 15, 16);
+        const pinky = this.isFingerCurled(landmarks, 17, 18, 19, 20);
+        if (!index || !ring || !pinky) return 'NONE';
+        if (middle) return 'TWO_FINGERS';
+        const middleDown = this.isFingerCurled(landmarks, 9, 10, 11, 12)
+            || this.fingerReach(landmarks, 9, 12) < this.fingerReach(landmarks, 5, 8) * 0.78;
+        return middleDown ? 'ONE_FINGER' : 'NONE';
+    }
+
+    /**
     * RIGHT HAND CONTROLS:
     * - Quick pinch (tap) = Toggle Play/Pause for Track B (right deck)
     * - Pinch + UP/DOWN = Master Volume control
     * - Fist (Closed hand) + UP/DOWN = Bass control
      */
-    handleRightHandGesture(landmarks, pinches, gesture) {
+    handleRightHandGesture(landmarks, pinches, gesture, cuePose) {
         const state = stateStore.getState();
         const controlState = this.controlState.Right;
         const eqState = this.eqControlState.Right;
 
-        // FIST detection: If hand is closed, it's a fist (takes priority over pinch)
-        const isFist = gesture === 'Closed';
+        // A cue pose on this hand suppresses fist EQ until the pose ends.
+        const isFist = gesture === 'Closed' && !cuePose;
         // PINCH detection: Only valid when hand is OPEN (not a fist)
         const isPinching = gesture === 'Open' && pinches.index;
 
@@ -361,13 +423,13 @@ export class GestureEngine {
     * - 0% = Track A only, 50% = Both, 100% = Track B only
     * - Fist + UP/DOWN = Treble control
      */
-    handleLeftHandGesture(landmarks, pinches, gesture) {
+    handleLeftHandGesture(landmarks, pinches, gesture, cuePose) {
         const state = stateStore.getState();
         const controlState = this.controlState.Left;
         const eqState = this.eqControlState.Left;
 
-        // FIST detection: If hand is closed, it's a fist (takes priority over pinch)
-        const isFist = gesture === 'Closed';
+        // A cue pose on this hand suppresses fist EQ until the pose ends.
+        const isFist = gesture === 'Closed' && !cuePose;
         // PINCH detection: Only valid when hand is OPEN (not a fist)
         const isPinching = gesture === 'Open' && pinches.index;
 

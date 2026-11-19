@@ -125,6 +125,10 @@ async function playFromCue(deck, seconds) {
     await audioEngine.resumeTrack(deck);
 }
 
+export function playSavedCue(deck, slot) {
+    return playFromCue(deck, cueState[deck]?.[slot]);
+}
+
 function render(root) {
     root.dataset.deck = cueState.deck;
     root.querySelectorAll('.cue-panel-deck').forEach((btn) => {

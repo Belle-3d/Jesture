@@ -1,5 +1,6 @@
 import { stateStore } from './stateStore';
 import { audioEngine } from './audioEngine';
+import { playSavedCue } from './cuePanel';
 
 export class GestureEngine {
     constructor() {
@@ -27,6 +28,7 @@ export class GestureEngine {
         // Simple: horizontal delta of this.crossfaderFullDelta (normalized 0..1) => full crossfade (0..1)
         this.crossfaderFullDelta = 0.10;  // default: 0.10 normalized units (adjust if needed)
         this.eqSensitivity = 0.25;  // For bass/treble (vertical movement)
+        this.cueLatch = { Left: null, Right: null };
 
         // Minimum movement threshold to distinguish tap from drag (smaller for quicker response)
         this.movementThreshold = 0.01;
@@ -106,6 +108,7 @@ export class GestureEngine {
 
         // ---------------------------------------------------------------------
 
+        const seenHands = new Set();
         for (let i = 0; i < results.multiHandLandmarks.length; i++) {
             const landmarks = results.multiHandLandmarks[i];
             const classification = results.multiHandedness[i];
@@ -123,9 +126,23 @@ export class GestureEngine {
             // 3. Easter Egg: Middle Finger Detection
             const isMiddleFinger = this.detectMiddleFinger(landmarks);
 
-            // Test-only pose. Not used by any control path.
             const fingerPose = this.detectFingerCount(landmarks);
-            const cuePose = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
+            const pinchActive = gesture === 'Open' && (pinches.index || pinches.middle);
+            const rawCue = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
+            const cuePose = rawCue && !pinchActive;
+            seenHands.add(label);
+            if (cuePose) {
+                if (!this.cueLatch[label]) {
+                    this.cueLatch[label] = fingerPose;
+                    const deck = label === 'Left' ? 'A' : 'B';
+                    const slot = fingerPose === 'ONE_FINGER' ? 1 : 2;
+                    playSavedCue(deck, slot);
+                }
+            } else if (pinchActive && rawCue) {
+                if (!this.cueLatch[label]) this.cueLatch[label] = fingerPose;
+            } else if (!pinchActive) {
+                this.cueLatch[label] = null;
+            }
 
             // Get control state for this hand
             const controlState = this.controlState[label];
@@ -149,7 +166,7 @@ export class GestureEngine {
                 isControlling,
                 controlType,
                 isMiddleFinger,
-                fingerPose,
+                fingerPose: pinchActive ? 'NONE' : fingerPose,
                 clap: clapDetected 
             });
 
@@ -175,6 +192,9 @@ export class GestureEngine {
             }
 
             this.lastPinchState[label] = pinches;
+        }
+        for (const hand of ['Left', 'Right']) {
+            if (!seenHands.has(hand)) this.cueLatch[hand] = null;
         }
         return handsData;
     }

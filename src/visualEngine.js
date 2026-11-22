@@ -30,9 +30,10 @@ export class VisualEngine {
         const width = this.canvas.width;
         const height = this.canvas.height;
 
-        // Video source dimensions (HD)
-        const videoWidth = 1280;
-        const videoHeight = 720;
+        // Prefer the real frame size so the overlay stays aligned if the
+        // camera cannot honor the 960×540 request in main.js.
+        const videoWidth = results.image?.videoWidth || results.image?.width || 960;
+        const videoHeight = results.image?.videoHeight || results.image?.height || 540;
 
         // Calculate COVER scale (fill screen, crop excess)
         const scale = Math.max(width / videoWidth, height / videoHeight);

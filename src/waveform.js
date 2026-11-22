@@ -8,23 +8,23 @@ const HALF_SPAN = VIEW_SPAN / 2;
 const BUCKET_SECONDS = 0.05;
 
 const WAVE = {
-    A: 'rgba(255, 255, 255, 0.38)',
-    B: 'rgba(200, 180, 140, 0.4)',
+    A: 'rgba(107, 242, 211, 0.38)',
+    B: 'rgba(197, 138, 255, 0.4)',
 };
 
 const PROGRESS = {
-    A: 'rgba(255, 255, 255, 0.95)',
-    B: 'rgba(220, 200, 160, 0.95)',
+    A: 'rgba(107, 242, 211, 0.95)',
+    B: 'rgba(197, 138, 255, 0.95)',
 };
 
 const PLAYHEAD = {
-    A: 'rgba(255, 255, 255, 0.95)',
-    B: 'rgba(220, 200, 160, 0.95)',
+    A: 'rgba(239, 244, 252, 0.95)',
+    B: 'rgba(239, 244, 252, 0.95)',
 };
 
 const OVERVIEW = {
-    A: [255, 255, 255],
-    B: [200, 180, 140],
+    A: [107, 242, 211],
+    B: [197, 138, 255],
 };
 
 function formatTime(seconds) {

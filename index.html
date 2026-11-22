@@ -5,38 +5,88 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <title>Lumaire · A DJ controller you play in mid-air</title>
 </head>
 
 <body>
   <div id="app">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="icon-play" viewBox="0 0 24 24">
+          <polygon points="6 3 20 12 6 21 6 3" fill="currentColor" />
+        </symbol>
+        <symbol id="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="14" y="4" width="4" height="16" />
+          <rect x="6" y="4" width="4" height="16" />
+        </symbol>
+        <symbol id="icon-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+          <line x1="4" y1="22" x2="4" y2="15" />
+        </symbol>
+        <symbol id="icon-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </symbol>
+        <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </symbol>
+        <symbol id="icon-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+          <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+          <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+          <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+        </symbol>
+        <symbol id="icon-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" x2="4" y1="21" y2="14" />
+          <line x1="4" x2="4" y1="10" y2="3" />
+          <line x1="12" x2="12" y1="21" y2="12" />
+          <line x1="12" x2="12" y1="8" y2="3" />
+          <line x1="20" x2="20" y1="21" y2="16" />
+          <line x1="20" x2="20" y1="12" y2="3" />
+          <line x1="2" x2="6" y1="14" y2="14" />
+          <line x1="10" x2="14" y1="8" y2="8" />
+          <line x1="18" x2="22" y1="16" y2="16" />
+        </symbol>
+        <symbol id="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </symbol>
+      </defs>
+    </svg>
     <video id="input_video" style="display: none;"></video>
     <canvas id="output_canvas"></canvas>
 
     <!-- Gesture Controls (top right) -->
     <div id="hints-panel" class="hints collapsed">
       <div id="hints-header" class="hints-header">
-        <span>Gesture Controls</span>
-        <span class="hints-toggle">▼</span>
+        <span class="hints-title">
+          <svg class="icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
+          Gesture Controls
+        </span>
+        <svg class="icon hints-toggle" aria-hidden="true"><use href="#icon-chevron"></use></svg>
       </div>
       <div id="hints-content" class="hints-content">
         <div class="hint-section">
-          <span class="hint-icon">🖐️</span>
+          <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
           <div class="hint-content">
             <strong>Right Hand</strong>
             <p>Pinch = Play/Pause</p>
-            <p>Pinch + ⭥ = Volume</p>
+            <p>Pinch + ↕ = Volume</p>
           </div>
         </div>
         <div class="hint-section">
-          <span class="hint-icon">🖐️</span>
+          <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
           <div class="hint-content">
             <strong>Left Hand</strong>
-            <p>Pinch + ⭤ = Crossfader</p>
+            <p>Pinch + ↔ = Crossfader</p>
           </div>
         </div>
         <div class="hint-section">
-          <span class="hint-icon">✊</span>
+          <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
           <div class="hint-content">
             <strong>Fist Gestures</strong>
             <p>Right = Bass | Left = Treble</p>
@@ -49,8 +99,15 @@
     <div id="track-panel">
       <section class="console-deck console-deck-a" aria-label="Deck A">
         <div class="track-control track-a">
-          <label>🟢 Track A:</label>
-          <input type="file" id="track-a-input" accept="audio/*">
+          <h2 class="deck-heading">
+            <span class="deck-bar" aria-hidden="true"></span>
+            Track A
+          </h2>
+          <label class="file-pick" for="track-a-input">
+            <svg class="icon" aria-hidden="true"><use href="#icon-upload"></use></svg>
+            <span>Upload</span>
+          </label>
+          <input type="file" id="track-a-input" accept="audio/*" aria-label="Upload track A">
         </div>
         <div class="waveform waveform-a" data-deck="A">
           <div class="waveform-label">Full track</div>
@@ -68,7 +125,11 @@
           </div>
           <div class="waveform-status"></div>
         </div>
-        <button id="play-track-a-btn" class="play-all-btn">▶️ Play A</button>
+        <button id="play-track-a-btn" class="play-all-btn" type="button" aria-label="Play A">
+          <svg class="icon icon-play" aria-hidden="true"><use href="#icon-play"></use></svg>
+          <svg class="icon icon-pause" aria-hidden="true"><use href="#icon-pause"></use></svg>
+          <span data-play-label>Play A</span>
+        </button>
       </section>
 
       <section class="console-mixer" aria-label="Mixer">
@@ -85,13 +146,23 @@
             <div id="crossfader-display" class="status-display crossfader mixer-hit-xfade">Crossfader: 50%</div>
           </div>
         </div>
-        <button id="edit-cues-btn" class="cue-panel-toggle" type="button">Edit Cues</button>
+        <button id="edit-cues-btn" class="cue-panel-toggle" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-flag"></use></svg>
+          Edit Cues
+        </button>
       </section>
 
       <section class="console-deck console-deck-b" aria-label="Deck B">
         <div class="track-control track-b">
-          <label>🔴 Track B:</label>
-          <input type="file" id="track-b-input" accept="audio/*">
+          <h2 class="deck-heading">
+            <span class="deck-bar" aria-hidden="true"></span>
+            Track B
+          </h2>
+          <label class="file-pick" for="track-b-input">
+            <svg class="icon" aria-hidden="true"><use href="#icon-upload"></use></svg>
+            <span>Upload</span>
+          </label>
+          <input type="file" id="track-b-input" accept="audio/*" aria-label="Upload track B">
         </div>
         <div class="waveform waveform-b" data-deck="B">
           <div class="waveform-label">Full track</div>
@@ -109,14 +180,21 @@
           </div>
           <div class="waveform-status"></div>
         </div>
-        <button id="play-track-b-btn" class="play-all-btn">▶️ Play B</button>
+        <button id="play-track-b-btn" class="play-all-btn" type="button" aria-label="Play B">
+          <svg class="icon icon-play" aria-hidden="true"><use href="#icon-play"></use></svg>
+          <svg class="icon icon-pause" aria-hidden="true"><use href="#icon-pause"></use></svg>
+          <span data-play-label>Play B</span>
+        </button>
       </section>
     </div>
 
     <aside id="cue-panel" class="cue-panel" hidden>
       <div class="cue-panel-header">
-        <h2 class="cue-panel-title">Cue Preparation</h2>
-        <button id="cue-panel-close" class="cue-panel-close" type="button">Close</button>
+        <h2 class="cue-panel-title">
+          <svg class="icon" aria-hidden="true"><use href="#icon-flag"></use></svg>
+          Cue Preparation
+        </h2>
+        <button id="cue-panel-close" class="cue-panel-close" type="button" aria-label="Close">Close</button>
       </div>
       <div class="cue-panel-decks" role="tablist" aria-label="Deck">
         <button type="button" class="cue-panel-deck cue-panel-active" data-deck="A" role="tab">Deck A</button>
@@ -128,12 +206,21 @@
           <div class="cue-panel-time" data-cue-value>—:——</div>
           <input class="cue-panel-input" data-cue-input type="text" inputmode="numeric" placeholder="0:00" aria-label="Cue 1 timestamp">
           <div class="cue-panel-actions">
-            <button type="button" class="cue-panel-save" data-cue-save>Save</button>
+            <button type="button" class="cue-panel-save" data-cue-save>
+              <svg class="icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+              Save
+            </button>
             <button type="button" class="cue-panel-clear" data-cue-clear>Clear</button>
           </div>
           <div class="cue-panel-actions">
-            <button type="button" class="cue-panel-jump" data-cue-jump>Jump to Cue</button>
-            <button type="button" class="cue-panel-play" data-cue-play>Play From Cue</button>
+            <button type="button" class="cue-panel-jump" data-cue-jump>
+              <svg class="icon" aria-hidden="true"><use href="#icon-maximize"></use></svg>
+              Jump to Cue
+            </button>
+            <button type="button" class="cue-panel-play" data-cue-play>
+              <svg class="icon" aria-hidden="true"><use href="#icon-play"></use></svg>
+              Play From Cue
+            </button>
           </div>
         </div>
         <div class="cue-panel-slot" data-slot="2">
@@ -141,12 +228,21 @@
           <div class="cue-panel-time" data-cue-value>—:——</div>
           <input class="cue-panel-input" data-cue-input type="text" inputmode="numeric" placeholder="0:00" aria-label="Cue 2 timestamp">
           <div class="cue-panel-actions">
-            <button type="button" class="cue-panel-save" data-cue-save>Save</button>
+            <button type="button" class="cue-panel-save" data-cue-save>
+              <svg class="icon" aria-hidden="true"><use href="#icon-lock"></use></svg>
+              Save
+            </button>
             <button type="button" class="cue-panel-clear" data-cue-clear>Clear</button>
           </div>
           <div class="cue-panel-actions">
-            <button type="button" class="cue-panel-jump" data-cue-jump>Jump to Cue</button>
-            <button type="button" class="cue-panel-play" data-cue-play>Play From Cue</button>
+            <button type="button" class="cue-panel-jump" data-cue-jump>
+              <svg class="icon" aria-hidden="true"><use href="#icon-maximize"></use></svg>
+              Jump to Cue
+            </button>
+            <button type="button" class="cue-panel-play" data-cue-play>
+              <svg class="icon" aria-hidden="true"><use href="#icon-play"></use></svg>
+              Play From Cue
+            </button>
           </div>
         </div>
       </div>

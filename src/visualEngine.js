@@ -135,20 +135,17 @@ export class VisualEngine {
         ctx.clearRect(0, 0, cssW, cssH);
 
         const state = stateStore.getState();
-        const layoutW = 360;
-        const layoutH = 250;
-        const scale = Math.min(1, cssW / layoutW, cssH / layoutH);
-        const midX = layoutW / 2;
-        const barsY = 68;
-        const xfadeY = 220;
+        const midX = cssW / 2;
+        const xfadeY = cssH - 34;
+        const barHeight = Math.max(96, cssH - 124);
+        const barsY = 34 + barHeight / 2;
+        const col = Math.max(72, Math.min(cssW * 0.28, 96));
 
         ctx.save();
-        ctx.translate((cssW - layoutW * scale) / 2, (cssH - layoutH * scale) / 2);
-        ctx.scale(scale, scale);
-        this.drawMasterVolume(ctx, midX, barsY, state);
-        this.drawEQIndicator(ctx, midX - 50, barsY, 'Bass', state.bass, '#F5C77E');
-        this.drawEQIndicator(ctx, midX + 50, barsY, 'Treble', state.treble, '#A8C5D9');
-        this.drawCrossfader(ctx, midX, xfadeY, state);
+        this.drawMasterVolume(ctx, midX, barsY, state, barHeight);
+        this.drawEQIndicator(ctx, midX - col, barsY, 'Bass', state.bass, '#6BF2D3', 'left', barHeight);
+        this.drawEQIndicator(ctx, midX + col, barsY, 'Treble', state.treble, '#C58AFF', 'right', barHeight);
+        this.drawCrossfader(ctx, midX, xfadeY, state, Math.max(180, cssW - 16));
         ctx.restore();
     }
 
@@ -164,8 +161,8 @@ export class VisualEngine {
         // Bottom right control group: Master + Bass + Treble
         const rightGroupX = width - 140;
         this.drawMasterVolume(ctx, rightGroupX, bottomY, state);
-        this.drawEQIndicator(ctx, rightGroupX - 50, bottomY, 'Bass', state.bass, '#F5C77E');
-        this.drawEQIndicator(ctx, rightGroupX + 50, bottomY, 'Treble', state.treble, '#A8C5D9');
+        this.drawEQIndicator(ctx, rightGroupX - 50, bottomY, 'Bass', state.bass, '#6BF2D3');
+        this.drawEQIndicator(ctx, rightGroupX + 50, bottomY, 'Treble', state.treble, '#C58AFF');
 
         ctx.restore();
     }
@@ -173,56 +170,55 @@ export class VisualEngine {
     /**
      * Draw the crossfader (horizontal slider at bottom)
      */
-    drawCrossfader(ctx, x, y, state) {
-        const barWidth = 360;
-        const barHeight = 34;
+    drawCrossfader(ctx, x, y, state, barWidth = 360) {
+        const barHeight = 38;
         const barX = x - barWidth / 2;
         const barY = y - barHeight / 2;
 
         // Outline and background
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.fillRect(barX, barY, barWidth, barHeight);
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.20)';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
         // Left (A) and Right (B) gradients
         const leftGradient = ctx.createLinearGradient(barX, 0, barX + barWidth / 2, 0);
-        leftGradient.addColorStop(0, 'rgba(255,255,255,0.35)');
-        leftGradient.addColorStop(1, 'rgba(255,255,255,0.08)');
+        leftGradient.addColorStop(0, 'rgba(107,242,211,0.55)');
+        leftGradient.addColorStop(1, 'rgba(107,242,211,0.08)');
         ctx.fillStyle = leftGradient;
         ctx.fillRect(barX + 2, barY + 2, barWidth / 2 - 4, barHeight - 4);
 
         const rightGradient = ctx.createLinearGradient(barX + barWidth / 2, 0, barX + barWidth, 0);
-        rightGradient.addColorStop(0, 'rgba(200,180,140,0.08)');
-        rightGradient.addColorStop(1, 'rgba(200,180,140,0.35)');
+        rightGradient.addColorStop(0, 'rgba(197,138,255,0.08)');
+        rightGradient.addColorStop(1, 'rgba(197,138,255,0.55)');
         ctx.fillStyle = rightGradient;
         ctx.fillRect(barX + barWidth / 2 + 2, barY + 2, barWidth / 2 - 4, barHeight - 4);
 
         // Thumb
         const thumbX = barX + state.crossfaderPosition * barWidth;
-        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.fillStyle = '#EFF4FC';
         ctx.fillRect(thumbX - 5, barY - 6, 10, barHeight + 12);
-        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.strokeStyle = 'rgba(107,242,211,0.55)';
         ctx.strokeRect(thumbX - 5, barY - 6, 10, barHeight + 12);
 
         // Labels A / B
-        ctx.font = '500 11px Inter, sans-serif';
+        ctx.font = '600 14px Inter, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillStyle = '#6BF2D3';
         ctx.fillText('A', barX + 8, barY + barHeight / 2 + 5);
         ctx.textAlign = 'right';
-        ctx.fillStyle = 'rgba(200,180,140,0.8)';
+        ctx.fillStyle = '#C58AFF';
         ctx.fillText('B', barX + barWidth - 8, barY + barHeight / 2 + 5);
 
-        // Percentage and description
+        // Percentage sits in the fader; description below
         ctx.textAlign = 'center';
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 13px Inter, sans-serif';
-        ctx.fillText(`${Math.round(state.crossfaderPosition * 100)}%`, x, barY - 12);
+        ctx.fillStyle = '#EFF4FC';
+        ctx.font = '600 16px Inter, sans-serif';
+        ctx.fillText(`${Math.round(state.crossfaderPosition * 100)}%`, x, barY + barHeight / 2 + 5);
 
-        ctx.font = '11px Arial';
-        ctx.fillStyle = '#aaa';
+        ctx.font = '500 12px Inter, sans-serif';
+        ctx.fillStyle = '#B7C5D8';
         let desc;
         if (state.crossfaderPosition < 0.25) desc = 'Track A';
         else if (state.crossfaderPosition > 0.75) desc = 'Track B';
@@ -233,9 +229,8 @@ export class VisualEngine {
     /**
      * Draw master volume indicator (vertical bar)
      */
-    drawMasterVolume(ctx, x, y, state) {
-        const barWidth = 25;
-        const barHeight = 120;
+    drawMasterVolume(ctx, x, y, state, barHeight = 148) {
+        const barWidth = 36;
         const barY = y - barHeight / 2;
 
         // Background
@@ -243,29 +238,29 @@ export class VisualEngine {
         ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
 
         // Border
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
 
         // Volume fill
         const fillHeight = state.masterVolume * barHeight;
         const gradient = ctx.createLinearGradient(0, barY + barHeight, 0, barY);
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-        gradient.addColorStop(1, 'rgba(255, 255, 255, 0.3)');
+        gradient.addColorStop(0, 'rgba(107, 242, 211, 0.9)');
+        gradient.addColorStop(1, 'rgba(239, 244, 252, 0.5)');
 
         ctx.fillStyle = gradient;
         ctx.fillRect(x - barWidth / 2 + 2, barY + barHeight - fillHeight, barWidth - 4, fillHeight);
 
         // Volume percentage
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.font = '500 11px Inter, sans-serif';
+        ctx.fillStyle = '#EFF4FC';
+        ctx.font = '600 22px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`${Math.round(state.masterVolume * 100)}%`, x, barY - 8);
+        ctx.fillText(`${Math.round(state.masterVolume * 100)}%`, x, barY - 12);
 
         // Label
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '500 9px Inter, sans-serif';
-        ctx.fillText('MASTER', x, barY + barHeight + 15);
+        ctx.fillStyle = '#B7C5D8';
+        ctx.font = '500 12px Inter, sans-serif';
+        ctx.fillText('MASTER', x, barY + barHeight + 18);
     }
 
     /**
@@ -337,33 +332,34 @@ export class VisualEngine {
      * Draw EQ indicator (bass or treble)
      * Value ranges from -1 (cut) to +1 (boost), 0 is neutral
      */
-    drawEQIndicator(ctx, x, y, label, value, color) {
-        const barWidth = 25;
-        const barHeight = 80;
+    drawEQIndicator(ctx, x, y, label, value, color, tickSide = 'right', barHeight = 148) {
+        const barWidth = 40;
         const barY = y - barHeight / 2;
         const centerY = y; // Center line (neutral position)
 
-        // Background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
+        // Split-range background: positive above 0, negative below
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight / 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(x - barWidth / 2, centerY, barWidth, barHeight / 2);
 
         // Border
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
 
-        // Center line (neutral)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
+        // Center line (0 dB)
+        ctx.strokeStyle = 'rgba(239, 244, 252, 0.75)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(x - barWidth / 2, centerY);
-        ctx.lineTo(x + barWidth / 2, centerY);
+        ctx.moveTo(x - barWidth / 2 - 4, centerY);
+        ctx.lineTo(x + barWidth / 2 + 4, centerY);
         ctx.stroke();
 
         // Value fill
         const fillHeight = Math.abs(value) * (barHeight / 2);
         ctx.fillStyle = color;
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = value >= 0 ? 0.72 : 0.42;
 
         if (value >= 0) {
             ctx.fillRect(x - barWidth / 2 + 3, centerY - fillHeight, barWidth - 6, fillHeight);
@@ -372,17 +368,37 @@ export class VisualEngine {
         }
         ctx.globalAlpha = 1;
 
-        // Label
-        ctx.fillStyle = color;
-        ctx.font = '500 9px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, x, barY - 8);
+        // Range ticks on the outer side so meters stay uncluttered
+        ctx.font = '500 12px Inter, sans-serif';
+        if (tickSide === 'left') {
+            ctx.textAlign = 'right';
+            const tx = x - barWidth / 2 - 6;
+            ctx.fillStyle = '#B7C5D8';
+            ctx.fillText('+12', tx, barY + 12);
+            ctx.fillStyle = '#EFF4FC';
+            ctx.fillText('0', tx, centerY + 4);
+            ctx.fillStyle = '#B7C5D8';
+            ctx.fillText('−12', tx, barY + barHeight);
+        } else {
+            ctx.textAlign = 'left';
+            const tx = x + barWidth / 2 + 6;
+            ctx.fillStyle = '#B7C5D8';
+            ctx.fillText('+12', tx, barY + 12);
+            ctx.fillStyle = '#EFF4FC';
+            ctx.fillText('0', tx, centerY + 4);
+            ctx.fillStyle = '#B7C5D8';
+            ctx.fillText('−12', tx, barY + barHeight);
+        }
 
-        // dB value
+        ctx.textAlign = 'center';
+        ctx.fillStyle = color;
+        ctx.font = '600 12px Inter, sans-serif';
+        ctx.fillText(label.toUpperCase(), x, barY + barHeight + 16);
+
         const dbValue = Math.round(value * 12);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '500 10px Inter, sans-serif';
-        ctx.fillText(`${dbValue >= 0 ? '+' : ''}${dbValue}dB`, x, barY + barHeight + 15);
+        ctx.fillStyle = '#EFF4FC';
+        ctx.font = '600 22px Inter, sans-serif';
+        ctx.fillText(`${dbValue >= 0 ? '+' : ''}${dbValue} dB`, x, barY - 10);
     }
 
     /**
@@ -554,8 +570,7 @@ export class VisualEngine {
 
         ctx.save();
         ctx.lineWidth = 1.5;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = 'rgba(255, 255, 255, 0.2)';
+        ctx.shadowBlur = 0;
 
         const getWaveValue = (index, total, offset = 0) => {
             if (!fftData) {
@@ -581,8 +596,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const topGrad = ctx.createLinearGradient(0, 0, 0, maxWaveHeight + edgeOffset);
-        topGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-        topGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        topGrad.addColorStop(0, 'rgba(107, 242, 211, 0.4)');
+        topGrad.addColorStop(1, 'rgba(107, 242, 211, 0)');
         ctx.fillStyle = topGrad;
         ctx.fill();
 
@@ -600,8 +615,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const bottomGrad = ctx.createLinearGradient(0, height, 0, height - maxWaveHeight - edgeOffset);
-        bottomGrad.addColorStop(0, 'rgba(200, 180, 140, 0.4)');
-        bottomGrad.addColorStop(1, 'rgba(200, 180, 140, 0)');
+        bottomGrad.addColorStop(0, 'rgba(197, 138, 255, 0.4)');
+        bottomGrad.addColorStop(1, 'rgba(197, 138, 255, 0)');
         ctx.fillStyle = bottomGrad;
         ctx.fill();
 
@@ -619,8 +634,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const leftGrad = ctx.createLinearGradient(0, 0, maxWaveHeight + edgeOffset, 0);
-        leftGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-        leftGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        leftGrad.addColorStop(0, 'rgba(107, 242, 211, 0.4)');
+        leftGrad.addColorStop(1, 'rgba(107, 242, 211, 0)');
         ctx.fillStyle = leftGrad;
         ctx.fill();
 
@@ -638,8 +653,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const rightGrad = ctx.createLinearGradient(width, 0, width - maxWaveHeight - edgeOffset, 0);
-        rightGrad.addColorStop(0, 'rgba(200, 180, 140, 0.4)');
-        rightGrad.addColorStop(1, 'rgba(200, 180, 140, 0)');
+        rightGrad.addColorStop(0, 'rgba(197, 138, 255, 0.4)');
+        rightGrad.addColorStop(1, 'rgba(197, 138, 255, 0)');
         ctx.fillStyle = rightGrad;
         ctx.fill();
 

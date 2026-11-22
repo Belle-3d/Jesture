@@ -46,7 +46,7 @@ function populateHintsPanel() {
         content.className = 'hints-content';
         content.innerHTML = `
             <div class="hint-section">
-                <span class="hint-icon">🖐️</span>
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
                 <div class="hint-content">
                     <strong>Right Hand</strong>
                     <p>Pinch = Toggle Track B Play/Pause (or keyboard B + Space)</p>
@@ -54,7 +54,7 @@ function populateHintsPanel() {
                 </div>
             </div>
             <div class="hint-section">
-                <span class="hint-icon">🖐️</span>
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
                 <div class="hint-content">
                     <strong>Left Hand</strong>
                     <p>Pinch = Toggle Track A Play/Pause (or keyboard A + Space)</p>
@@ -62,7 +62,7 @@ function populateHintsPanel() {
                 </div>
             </div>
             <div class="hint-section">
-                <span class="hint-icon">✊</span>
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
                 <div class="hint-content">
                     <strong>Fist Gestures</strong>
                     <p>Right = Bass | Left = Treble.</p>
@@ -253,14 +253,18 @@ stateStore.subscribe((state) => {
         trebleDisplay.textContent = `Treble: ${trebleDb >= 0 ? '+' : ''}${trebleDb}dB`;
     }
 
-    // Update per-track button text to reflect current play state
-    if (playTrackABtn) {
-        playTrackABtn.textContent = state.trackAPlaying ? '⏸ Pause A' : '▶️ Play A';
-    }
-    if (playTrackBBtn) {
-        playTrackBBtn.textContent = state.trackBPlaying ? '⏸ Pause B' : '▶️ Play B';
-    }
+    syncPlayButton(playTrackABtn, state.trackAPlaying, 'Play A', 'Pause A');
+    syncPlayButton(playTrackBBtn, state.trackBPlaying, 'Play B', 'Pause B');
 });
+
+function syncPlayButton(btn, playing, playText, pauseText) {
+    if (!btn) return;
+    btn.classList.toggle('is-playing', playing);
+    const label = playing ? pauseText : playText;
+    btn.setAttribute('aria-label', label);
+    const text = btn.querySelector('[data-play-label]');
+    if (text) text.textContent = label;
+}
 
 function onResults(results) {
     // Process gestures and get data

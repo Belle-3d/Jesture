@@ -8,23 +8,28 @@ const HALF_SPAN = VIEW_SPAN / 2;
 const BUCKET_SECONDS = 0.05;
 
 const WAVE = {
-    A: 'rgba(107, 242, 211, 0.38)',
-    B: 'rgba(197, 138, 255, 0.4)',
+    A: 'rgba(255, 255, 255, 0.45)',
+    B: 'rgba(255, 255, 255, 0.45)',
 };
 
 const PROGRESS = {
-    A: 'rgba(107, 242, 211, 0.95)',
-    B: 'rgba(197, 138, 255, 0.95)',
+    A: 'rgba(255, 255, 255, 0.95)',
+    B: 'rgba(255, 255, 255, 0.95)',
 };
 
 const PLAYHEAD = {
-    A: 'rgba(239, 244, 252, 0.95)',
-    B: 'rgba(239, 244, 252, 0.95)',
+    A: 'rgba(255, 255, 255, 0.96)',
+    B: 'rgba(255, 255, 255, 0.96)',
+};
+
+const PLAYHEAD_TINT = {
+    A: 'rgba(255, 255, 255, 0.55)',
+    B: 'rgba(255, 255, 255, 0.55)',
 };
 
 const OVERVIEW = {
-    A: [107, 242, 211],
-    B: [197, 138, 255],
+    A: [255, 255, 255],
+    B: [255, 255, 255],
 };
 
 function formatTime(seconds) {
@@ -387,8 +392,10 @@ class Waveform {
         }
 
         const playX = Math.min(width - 1, Math.max(0, (position / duration) * width));
-        ctx.fillStyle = PLAYHEAD[deck];
         const lineWidth = Math.max(1, Math.round(dpr));
+        ctx.fillStyle = PLAYHEAD_TINT[deck];
+        ctx.fillRect(playX - lineWidth, 0, lineWidth * 2, height);
+        ctx.fillStyle = PLAYHEAD[deck];
         ctx.fillRect(playX - lineWidth / 2, 0, lineWidth, height);
     }
 

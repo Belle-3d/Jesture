@@ -78,9 +78,6 @@ export class VisualEngine {
         // Draw Hand Info (requires same coordinate transform as video)
         this.drawHandInfo(handsData, width, height, xOffset, yOffset, scaledWidth, scaledHeight);
 
-        // Easter Egg: Check for middle finger gesture
-        this.drawEasterEgg(handsData, width, height);
-
         this.drawFingerPoseDebug(handsData, xOffset, yOffset, scaledWidth, scaledHeight);
     }
 
@@ -140,12 +137,15 @@ export class VisualEngine {
         const barHeight = Math.max(96, cssH - 124);
         const barsY = 34 + barHeight / 2;
         const col = Math.max(72, Math.min(cssW * 0.28, 96));
+        const eqBarWidth = 40;
+        const meterSpan = 2 * col + eqBarWidth;
+        const xfadeWidth = meterSpan + 28;
 
         ctx.save();
         this.drawMasterVolume(ctx, midX, barsY, state, barHeight);
-        this.drawEQIndicator(ctx, midX - col, barsY, 'Bass', state.bass, '#6BF2D3', 'left', barHeight);
-        this.drawEQIndicator(ctx, midX + col, barsY, 'Treble', state.treble, '#C58AFF', 'right', barHeight);
-        this.drawCrossfader(ctx, midX, xfadeY, state, Math.max(180, cssW - 16));
+        this.drawEQIndicator(ctx, midX - col, barsY, 'Treble', state.treble, '#C850FF', 'left', barHeight);
+        this.drawEQIndicator(ctx, midX + col, barsY, 'Bass', state.bass, '#00E8F0', 'right', barHeight);
+        this.drawCrossfader(ctx, midX, xfadeY, state, xfadeWidth);
         ctx.restore();
     }
 
@@ -161,8 +161,8 @@ export class VisualEngine {
         // Bottom right control group: Master + Bass + Treble
         const rightGroupX = width - 140;
         this.drawMasterVolume(ctx, rightGroupX, bottomY, state);
-        this.drawEQIndicator(ctx, rightGroupX - 50, bottomY, 'Bass', state.bass, '#6BF2D3');
-        this.drawEQIndicator(ctx, rightGroupX + 50, bottomY, 'Treble', state.treble, '#C58AFF');
+        this.drawEQIndicator(ctx, rightGroupX - 50, bottomY, 'Treble', state.treble, '#C850FF');
+        this.drawEQIndicator(ctx, rightGroupX + 50, bottomY, 'Bass', state.bass, '#00E8F0');
 
         ctx.restore();
     }
@@ -171,7 +171,7 @@ export class VisualEngine {
      * Draw the crossfader (horizontal slider at bottom)
      */
     drawCrossfader(ctx, x, y, state, barWidth = 360) {
-        const barHeight = 38;
+        const barHeight = 14;
         const barX = x - barWidth / 2;
         const barY = y - barHeight / 2;
 
@@ -184,46 +184,44 @@ export class VisualEngine {
 
         // Left (A) and Right (B) gradients
         const leftGradient = ctx.createLinearGradient(barX, 0, barX + barWidth / 2, 0);
-        leftGradient.addColorStop(0, 'rgba(107,242,211,0.55)');
-        leftGradient.addColorStop(1, 'rgba(107,242,211,0.08)');
+        leftGradient.addColorStop(0, 'rgba(0,232,240,0.55)');
+        leftGradient.addColorStop(1, 'rgba(0,232,240,0.08)');
         ctx.fillStyle = leftGradient;
         ctx.fillRect(barX + 2, barY + 2, barWidth / 2 - 4, barHeight - 4);
 
         const rightGradient = ctx.createLinearGradient(barX + barWidth / 2, 0, barX + barWidth, 0);
-        rightGradient.addColorStop(0, 'rgba(197,138,255,0.08)');
-        rightGradient.addColorStop(1, 'rgba(197,138,255,0.55)');
+        rightGradient.addColorStop(0, 'rgba(200,80,255,0.08)');
+        rightGradient.addColorStop(1, 'rgba(200,80,255,0.55)');
         ctx.fillStyle = rightGradient;
         ctx.fillRect(barX + barWidth / 2 + 2, barY + 2, barWidth / 2 - 4, barHeight - 4);
 
         // Thumb
         const thumbX = barX + state.crossfaderPosition * barWidth;
+        ctx.save();
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
         ctx.fillStyle = '#EFF4FC';
         ctx.fillRect(thumbX - 5, barY - 6, 10, barHeight + 12);
-        ctx.strokeStyle = 'rgba(107,242,211,0.55)';
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(0,232,240,0.55)';
         ctx.strokeRect(thumbX - 5, barY - 6, 10, barHeight + 12);
 
         // Labels A / B
-        ctx.font = '600 14px Inter, sans-serif';
+        ctx.font = '300 12px Inter, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#6BF2D3';
-        ctx.fillText('A', barX + 8, barY + barHeight / 2 + 5);
+        ctx.fillStyle = '#00E8F0';
+        ctx.fillText('A', barX - 16, barY + barHeight / 2 + 4);
         ctx.textAlign = 'right';
-        ctx.fillStyle = '#C58AFF';
-        ctx.fillText('B', barX + barWidth - 8, barY + barHeight / 2 + 5);
+        ctx.fillStyle = '#C850FF';
+        ctx.fillText('B', barX + barWidth + 16, barY + barHeight / 2 + 4);
 
-        // Percentage sits in the fader; description below
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#EFF4FC';
-        ctx.font = '600 16px Inter, sans-serif';
-        ctx.fillText(`${Math.round(state.crossfaderPosition * 100)}%`, x, barY + barHeight / 2 + 5);
-
-        ctx.font = '500 12px Inter, sans-serif';
         ctx.fillStyle = '#B7C5D8';
-        let desc;
-        if (state.crossfaderPosition < 0.25) desc = 'Track A';
-        else if (state.crossfaderPosition > 0.75) desc = 'Track B';
-        else desc = 'Both Tracks';
-        ctx.fillText(desc, x, barY + barHeight + 16);
+        ctx.font = '300 12px Inter, sans-serif';
+        ctx.fillText('CROSSFADER', x, barY + barHeight + 16);
+        ctx.fillStyle = '#EFF4FC';
+        ctx.font = '300 13px Inter, sans-serif';
+        ctx.fillText(`${Math.round(state.crossfaderPosition * 100)}%`, x + 72, barY + barHeight + 16);
     }
 
     /**
@@ -245,7 +243,7 @@ export class VisualEngine {
         // Volume fill
         const fillHeight = state.masterVolume * barHeight;
         const gradient = ctx.createLinearGradient(0, barY + barHeight, 0, barY);
-        gradient.addColorStop(0, 'rgba(107, 242, 211, 0.9)');
+        gradient.addColorStop(0, 'rgba(0, 232, 240, 0.9)');
         gradient.addColorStop(1, 'rgba(239, 244, 252, 0.5)');
 
         ctx.fillStyle = gradient;
@@ -253,13 +251,13 @@ export class VisualEngine {
 
         // Volume percentage
         ctx.fillStyle = '#EFF4FC';
-        ctx.font = '600 22px Inter, sans-serif';
+        ctx.font = '300 16px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`${Math.round(state.masterVolume * 100)}%`, x, barY - 12);
+        ctx.fillText(`${Math.round(state.masterVolume * 100)}%`, x, barY - 8);
 
         // Label
         ctx.fillStyle = '#B7C5D8';
-        ctx.font = '500 12px Inter, sans-serif';
+        ctx.font = '300 12px Inter, sans-serif';
         ctx.fillText('MASTER', x, barY + barHeight + 18);
     }
 
@@ -308,7 +306,7 @@ export class VisualEngine {
 
         // Track label
         ctx.fillStyle = isLoaded ? trackColor : 'rgba(100, 100, 100, 0.5)';
-        ctx.font = '500 12px Inter, sans-serif';
+        ctx.font = '300 11px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(`Track ${trackLabel}`, x, barY - 8);
 
@@ -343,17 +341,17 @@ export class VisualEngine {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
         ctx.fillRect(x - barWidth / 2, centerY, barWidth, barHeight / 2);
 
-        // Border
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
+        // Border matches the master meter
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+        ctx.lineWidth = 1;
         ctx.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
 
-        // Center line (0 dB)
+        // Center line (0 dB), kept inside the bar
         ctx.strokeStyle = 'rgba(239, 244, 252, 0.75)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(x - barWidth / 2 - 4, centerY);
-        ctx.lineTo(x + barWidth / 2 + 4, centerY);
+        ctx.moveTo(x - barWidth / 2, centerY);
+        ctx.lineTo(x + barWidth / 2, centerY);
         ctx.stroke();
 
         // Value fill
@@ -369,7 +367,7 @@ export class VisualEngine {
         ctx.globalAlpha = 1;
 
         // Range ticks on the outer side so meters stay uncluttered
-        ctx.font = '500 12px Inter, sans-serif';
+        ctx.font = '300 11px Inter, sans-serif';
         if (tickSide === 'left') {
             ctx.textAlign = 'right';
             const tx = x - barWidth / 2 - 6;
@@ -392,13 +390,13 @@ export class VisualEngine {
 
         ctx.textAlign = 'center';
         ctx.fillStyle = color;
-        ctx.font = '600 12px Inter, sans-serif';
+        ctx.font = '300 12px Inter, sans-serif';
         ctx.fillText(label.toUpperCase(), x, barY + barHeight + 16);
 
         const dbValue = Math.round(value * 12);
         ctx.fillStyle = '#EFF4FC';
-        ctx.font = '600 22px Inter, sans-serif';
-        ctx.fillText(`${dbValue >= 0 ? '+' : ''}${dbValue} dB`, x, barY - 10);
+        ctx.font = '300 16px Inter, sans-serif';
+        ctx.fillText(`${dbValue >= 0 ? '+' : ''}${dbValue} DB`, x, barY - 8);
     }
 
     /**
@@ -408,7 +406,7 @@ export class VisualEngine {
         const aPlaying = state.trackAPlaying;
         const bPlaying = state.trackBPlaying;
 
-        ctx.font = '600 18px Inter, sans-serif';
+        ctx.font = '400 18px Inter, sans-serif';
         ctx.textAlign = 'center';
 
         // Track A status (left)
@@ -441,7 +439,7 @@ export class VisualEngine {
         ctx.fillStyle = aPlaying ? 'rgba(40,160,40,0.95)' : 'rgba(60,60,60,0.85)';
         this.roundRect(ctx, ax - w/2, ay - h/2, w, h, 8, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = '600 14px Inter, sans-serif';
+        ctx.font = '400 14px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(aPlaying ? '▶ Track A' : '⏸ Track A', ax, ay + 4);
         ctx.font = '400 11px Inter, sans-serif';
@@ -454,7 +452,7 @@ export class VisualEngine {
         ctx.fillStyle = bPlaying ? 'rgba(200,140,40,0.95)' : 'rgba(60,60,60,0.85)';
         this.roundRect(ctx, bx - w/2, by - h/2, w, h, 8, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = '600 14px Inter, sans-serif';
+        ctx.font = '400 14px Inter, sans-serif';
         ctx.fillText(bPlaying ? '▶ Track B' : '⏸ Track B', bx, by + 4);
         ctx.font = '400 11px Inter, sans-serif';
         ctx.fillText('Keyboard: B + Space', bx, by + 20 + 6);
@@ -522,7 +520,7 @@ export class VisualEngine {
             const controlType = hand.controlType || '';
             const cueLabel = hand.fingerPose === 'ONE_FINGER' || hand.fingerPose === 'TWO_FINGERS';
             if (!cueLabel && !controlType.includes('(Fist)')) {
-                const text = `${hand.label} | ${controlType}`;
+                const text = `${hand.label} | ${controlType}`.toUpperCase();
                 this.ctx.strokeText(text, x, y);
                 this.ctx.fillText(text, x, y);
             }
@@ -596,8 +594,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const topGrad = ctx.createLinearGradient(0, 0, 0, maxWaveHeight + edgeOffset);
-        topGrad.addColorStop(0, 'rgba(107, 242, 211, 0.4)');
-        topGrad.addColorStop(1, 'rgba(107, 242, 211, 0)');
+        topGrad.addColorStop(0, 'rgba(0, 232, 240, 0.55)');
+        topGrad.addColorStop(1, 'rgba(0, 232, 240, 0)');
         ctx.fillStyle = topGrad;
         ctx.fill();
 
@@ -615,8 +613,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const bottomGrad = ctx.createLinearGradient(0, height, 0, height - maxWaveHeight - edgeOffset);
-        bottomGrad.addColorStop(0, 'rgba(197, 138, 255, 0.4)');
-        bottomGrad.addColorStop(1, 'rgba(197, 138, 255, 0)');
+        bottomGrad.addColorStop(0, 'rgba(200, 80, 255, 0.55)');
+        bottomGrad.addColorStop(1, 'rgba(200, 80, 255, 0)');
         ctx.fillStyle = bottomGrad;
         ctx.fill();
 
@@ -634,8 +632,8 @@ export class VisualEngine {
         ctx.closePath();
 
         const leftGrad = ctx.createLinearGradient(0, 0, maxWaveHeight + edgeOffset, 0);
-        leftGrad.addColorStop(0, 'rgba(107, 242, 211, 0.4)');
-        leftGrad.addColorStop(1, 'rgba(107, 242, 211, 0)');
+        leftGrad.addColorStop(0, 'rgba(0, 232, 240, 0.55)');
+        leftGrad.addColorStop(1, 'rgba(0, 232, 240, 0)');
         ctx.fillStyle = leftGrad;
         ctx.fill();
 
@@ -653,65 +651,12 @@ export class VisualEngine {
         ctx.closePath();
 
         const rightGrad = ctx.createLinearGradient(width, 0, width - maxWaveHeight - edgeOffset, 0);
-        rightGrad.addColorStop(0, 'rgba(197, 138, 255, 0.4)');
-        rightGrad.addColorStop(1, 'rgba(197, 138, 255, 0)');
+        rightGrad.addColorStop(0, 'rgba(200, 80, 255, 0.55)');
+        rightGrad.addColorStop(1, 'rgba(200, 80, 255, 0)');
         ctx.fillStyle = rightGrad;
         ctx.fill();
 
         ctx.restore();
-    }
-
-    /**
-     * Easter Egg: Display message when user shows middle finger
-     */
-    drawEasterEgg(handsData, width, height) {
-        if (!handsData) return;
-
-        // Check if any hand is showing middle finger
-        const hasMiddleFinger = handsData.some(hand => hand.isMiddleFinger);
-
-        if (hasMiddleFinger) {
-            this.ctx.save();
-
-            // Semi-transparent dark overlay
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillRect(0, 0, width, height);
-
-            // Configure text styling
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-
-            // Main text with glow effect
-            const text = "Yeah, well F*** you too";
-            const centerX = width / 2;
-            const centerY = height / 2;
-
-            // Outer glow
-            this.ctx.shadowBlur = 40;
-            this.ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
-
-            // Text stroke (outline)
-            this.ctx.strokeStyle = '#000';
-            this.ctx.lineWidth = 8;
-            this.ctx.font = 'bold 72px Arial, sans-serif';
-            this.ctx.strokeText(text, centerX, centerY);
-
-            // Text fill
-            const gradient = this.ctx.createLinearGradient(0, centerY - 50, 0, centerY + 50);
-            gradient.addColorStop(0, '#ff0000');
-            gradient.addColorStop(0.5, '#ff6666');
-            gradient.addColorStop(1, '#ff0000');
-            this.ctx.fillStyle = gradient;
-            this.ctx.fillText(text, centerX, centerY);
-
-            // Add emoji below
-            this.ctx.shadowBlur = 20;
-            this.ctx.font = 'bold 60px Arial, sans-serif';
-            this.ctx.fillStyle = '#fff';
-            this.ctx.fillText('🖕', centerX, centerY + 80);
-
-            this.ctx.restore();
-        }
     }
 }
 

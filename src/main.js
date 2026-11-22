@@ -46,7 +46,7 @@ function populateHintsPanel() {
         content.className = 'hints-content';
         content.innerHTML = `
             <div class="hint-section">
-                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-hand-right"></use></svg>
                 <div class="hint-content">
                     <strong>Right Hand</strong>
                     <p>Pinch = Toggle Track B Play/Pause (or keyboard B + Space)</p>
@@ -54,7 +54,7 @@ function populateHintsPanel() {
                 </div>
             </div>
             <div class="hint-section">
-                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-hand-left"></use></svg>
                 <div class="hint-content">
                     <strong>Left Hand</strong>
                     <p>Pinch = Toggle Track A Play/Pause (or keyboard A + Space)</p>
@@ -62,11 +62,27 @@ function populateHintsPanel() {
                 </div>
             </div>
             <div class="hint-section">
-                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-sliders"></use></svg>
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-fist"></use></svg>
                 <div class="hint-content">
                     <strong>Fist Gestures</strong>
                     <p>Right = Bass | Left = Treble.</p>
                     <p>Hold B and use ↑/↓ to change Bass; hold T and use ↑/↓ to change Treble.</p>
+                </div>
+            </div>
+            <div class="hint-section">
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-cue-1"></use></svg>
+                <div class="hint-content">
+                    <strong>Cue 1</strong>
+                    <p>Right hand, 1 finger = play Cue 1 on Deck B</p>
+                    <p>Left hand, 1 finger = play Cue 1 on Deck A</p>
+                </div>
+            </div>
+            <div class="hint-section">
+                <svg class="icon hint-icon" aria-hidden="true"><use href="#icon-cue-2"></use></svg>
+                <div class="hint-content">
+                    <strong>Cue 2</strong>
+                    <p>Right hand, 2 fingers = play Cue 2 on Deck B</p>
+                    <p>Left hand, 2 fingers = play Cue 2 on Deck A</p>
                 </div>
             </div>
         

@@ -10,9 +10,9 @@ export class GestureEngine {
         // Control state tracking for each hand
         this.controlState = {
             // Right hand: Master volume control (pinch)
-            Right: { isPinching: false, startY: 0, startValue: 0, hasMoved: false },
+            Right: { isPinching: false, startY: 0, startValue: 0, hasMoved: false, pinchFrames: 0 },
             // Left hand: Crossfader control (pinch)
-            Left: { isPinching: false, startX: 0, startValue: 0, hasMoved: false }
+            Left: { isPinching: false, startX: 0, startValue: 0, hasMoved: false, pinchFrames: 0 }
         };
 
         // EQ control state tracking for fist gestures
@@ -29,13 +29,23 @@ export class GestureEngine {
         this.crossfaderFullDelta = 0.10;  // default: 0.10 normalized units (adjust if needed)
         this.eqSensitivity = 0.25;  // For bass/treble (vertical movement)
         this.cueLatch = { Left: null, Right: null };
+        // Fist stays latched until the hand clearly opens, so a closed hand
+        // cannot flicker into a cue or a pinch-to-play tap.
+        this.poseHold = { Left: false, Right: false };
+        this.fistCooldown = { Left: 0, Right: 0 };
 
         // Minimum movement threshold to distinguish tap from drag (smaller for quicker response)
         this.movementThreshold = 0.01;
+        this.minPinchTapFrames = 4;
+        this.fistCooldownFrames = 6;
     }
 
     process(results) {
         if (!results.multiHandLandmarks || !results.multiHandedness) return [];
+
+        for (const hand of ['Left', 'Right']) {
+            if (this.fistCooldown[hand] > 0) this.fistCooldown[hand] -= 1;
+        }
 
         const handsData = [];
         const seenHands = new Set();
@@ -50,13 +60,13 @@ export class GestureEngine {
             // 1. Pinch Detection
             const pinches = this.detectPinches(landmarks);
 
-            // 2. Open vs Fist
-            const gesture = this.detectHandPose(landmarks);
-
+            // 2. Open vs Fist, with hysteresis so a fist does not flicker Open
             const fingerPose = this.detectFingerCount(landmarks);
+            const gesture = this.stableGesture(label, this.curledFingerCount(landmarks), fingerPose);
+
             const pinchActive = gesture === 'Open' && (pinches.index || pinches.middle);
             const rawCue = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
-            const cuePose = rawCue && !pinchActive;
+            const cuePose = rawCue && !pinchActive && gesture === 'Open' && !this.eqControlState[label].isFist;
             seenHands.add(label);
             if (cuePose) {
                 if (!this.cueLatch[label]) {
@@ -119,7 +129,10 @@ export class GestureEngine {
             this.lastPinchState[label] = pinches;
         }
         for (const hand of ['Left', 'Right']) {
-            if (!seenHands.has(hand)) this.cueLatch[hand] = null;
+            if (!seenHands.has(hand)) {
+                this.cueLatch[hand] = null;
+                this.poseHold[hand] = false;
+            }
         }
         return handsData;
     }
@@ -138,7 +151,7 @@ export class GestureEngine {
         };
     }
 
-    detectHandPose(landmarks) {
+    curledFingerCount(landmarks) {
         const fingerTips = [8, 12, 16, 20];
         const fingerPIPs = [6, 10, 14, 18];
         const wrist = landmarks[0];
@@ -151,12 +164,42 @@ export class GestureEngine {
             const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
             const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
 
-            if (distTip < distPip) {
-                curledCount++;
-            }
+            if (distTip < distPip) curledCount++;
         }
+        return curledCount;
+    }
 
-        return curledCount >= 3 ? 'Closed' : 'Open';
+    /**
+     * Enter a fist at 3+ curled fingers. A recognized point or peace sign
+     * does not start the latch (Cue 1 is three curled fingers). Once latched,
+     * stay closed until only one finger is still curled so a fist cannot
+     * flicker open into a cue or a pinch tap.
+     */
+    stableGesture(label, curledCount, fingerPose) {
+        const cueLike = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
+        if (this.poseHold[label]) {
+            if (curledCount <= 1) this.poseHold[label] = false;
+        } else if (curledCount >= 3 && !cueLike) {
+            this.poseHold[label] = true;
+        }
+        return this.poseHold[label] ? 'Closed' : 'Open';
+    }
+
+    pinchIsLive(label, gesture, pinches, eqState) {
+        return gesture === 'Open'
+            && pinches.index
+            && !eqState.isFist
+            && (this.fistCooldown[label] || 0) <= 0;
+    }
+
+    cancelPinch(controlState) {
+        controlState.isPinching = false;
+        controlState.hasMoved = false;
+        controlState.pinchFrames = 0;
+    }
+
+    noteFistEnded(label) {
+        this.fistCooldown[label] = this.fistCooldownFrames;
     }
 
     /**
@@ -229,8 +272,8 @@ export class GestureEngine {
 
         // A cue pose on this hand suppresses fist EQ until the pose ends.
         const isFist = gesture === 'Closed' && !cuePose;
-        // PINCH detection: Only valid when hand is OPEN (not a fist)
-        const isPinching = gesture === 'Open' && pinches.index;
+        // PINCH detection: only a stable open hand, and not in the post-fist cooldown
+        const isPinching = this.pinchIsLive('Right', gesture, pinches, eqState);
 
         // Get current hand Y position (use wrist for stability)
         const currentY = landmarks[0].y;
@@ -239,11 +282,8 @@ export class GestureEngine {
         // FIST CONTROL (Bass) - Takes priority when fist is detected
         // =============================================
         if (isFist) {
-            // Cancel any ongoing pinch control
-            if (controlState.isPinching) {
-                controlState.isPinching = false;
-                controlState.hasMoved = false;
-            }
+            // Cancel any ongoing pinch without treating it as a play/pause tap
+            if (controlState.isPinching) this.cancelPinch(controlState);
 
             if (!eqState.isFist) {
                 // Fist started
@@ -264,6 +304,7 @@ export class GestureEngine {
         } else if (eqState.isFist) {
             // Fist released
             eqState.isFist = false;
+            this.noteFistEnded('Right');
             const finalBass = stateStore.getState().bass;
             const dbValue = (finalBass * 12).toFixed(0);
             console.log(`Right Fist: Bass set to ${dbValue > 0 ? '+' : ''}${dbValue}dB`);
@@ -274,6 +315,7 @@ export class GestureEngine {
         // =============================================
         if (isPinching && !controlState.isPinching) {
             controlState.isPinching = true;
+            controlState.pinchFrames = 1;
             controlState.startY = currentY;
             controlState.startValue = state.masterVolume;
             controlState.hasMoved = false;
@@ -283,6 +325,7 @@ export class GestureEngine {
         // PINCH HELD - Check for master volume control
         // =============================================
         else if (isPinching && controlState.isPinching) {
+            controlState.pinchFrames += 1;
             const deltaY = currentY - controlState.startY;
             const absDeltaY = Math.abs(deltaY);
 
@@ -301,9 +344,12 @@ export class GestureEngine {
         // PINCH RELEASED
         // =============================================
         else if (!isPinching && controlState.isPinching) {
+            const frames = controlState.pinchFrames || 0;
+            const cooling = (this.fistCooldown.Right || 0) > 0;
             controlState.isPinching = false;
+            controlState.pinchFrames = 0;
 
-            if (!controlState.hasMoved) {
+            if (!controlState.hasMoved && frames >= this.minPinchTapFrames && !cooling) {
                 // TAP = Toggle Play/Pause for Track B (right hand controls Track B)
                 const s = stateStore.getState();
                 console.log(`Right Hand: Tap Detected - Toggling Track B Play/Pause`);
@@ -312,7 +358,7 @@ export class GestureEngine {
                 } else {
                     audioEngine.resumeTrack('B');
                 }
-            } else {
+            } else if (controlState.hasMoved) {
                 // Movement occurred, it was master volume control
                 const finalVolume = stateStore.getState().masterVolume;
                 console.log(`Right Hand: Master Volume set to ${(finalVolume * 100).toFixed(0)}%`);
@@ -336,8 +382,8 @@ export class GestureEngine {
 
         // A cue pose on this hand suppresses fist EQ until the pose ends.
         const isFist = gesture === 'Closed' && !cuePose;
-        // PINCH detection: Only valid when hand is OPEN (not a fist)
-        const isPinching = gesture === 'Open' && pinches.index;
+        // PINCH detection: only a stable open hand, and not in the post-fist cooldown
+        const isPinching = this.pinchIsLive('Left', gesture, pinches, eqState);
 
         // Use X position for crossfader (left = Track A, right = Track B)
         const currentX = landmarks[8].x;
@@ -347,11 +393,8 @@ export class GestureEngine {
         // FIST CONTROL (Treble) - Takes priority when fist is detected
         // =============================================
         if (isFist) {
-            // Cancel any ongoing pinch control
-            if (controlState.isPinching) {
-                controlState.isPinching = false;
-                controlState.hasMoved = false;
-            }
+            // Cancel any ongoing pinch without treating it as a play/pause tap
+            if (controlState.isPinching) this.cancelPinch(controlState);
 
             if (!eqState.isFist) {
                 // Fist started
@@ -372,6 +415,7 @@ export class GestureEngine {
         } else if (eqState.isFist) {
             // Fist released
             eqState.isFist = false;
+            this.noteFistEnded('Left');
             const finalTreble = stateStore.getState().treble;
             const dbValue = (finalTreble * 12).toFixed(0);
             console.log(`Left Fist: Treble set to ${dbValue > 0 ? '+' : ''}${dbValue}dB`);
@@ -382,6 +426,7 @@ export class GestureEngine {
         // =============================================
         if (isPinching && !controlState.isPinching) {
             controlState.isPinching = true;
+            controlState.pinchFrames = 1;
             controlState.startX = currentX;
             controlState.startValue = state.crossfaderPosition;
             controlState.hasMoved = false;
@@ -391,6 +436,7 @@ export class GestureEngine {
         // PINCH HELD - Crossfader control
         // =============================================
         else if (isPinching && controlState.isPinching) {
+            controlState.pinchFrames += 1;
             const deltaX = currentX - controlState.startX;
             const absDeltaX = Math.abs(deltaX);
 
@@ -411,9 +457,12 @@ export class GestureEngine {
         // PINCH RELEASED
         // =============================================
         else if (!isPinching && controlState.isPinching) {
+            const frames = controlState.pinchFrames || 0;
+            const cooling = (this.fistCooldown.Left || 0) > 0;
             controlState.isPinching = false;
+            controlState.pinchFrames = 0;
 
-            if (!controlState.hasMoved) {
+            if (!controlState.hasMoved && frames >= this.minPinchTapFrames && !cooling) {
                 // TAP = Toggle Play/Pause for Track A (left hand controls Track A)
                 const s = stateStore.getState();
                 console.log(`Left Hand: Tap Detected - Toggling Track A Play/Pause`);
@@ -422,7 +471,7 @@ export class GestureEngine {
                 } else {
                     audioEngine.resumeTrack('A');
                 }
-            } else {
+            } else if (controlState.hasMoved) {
                 const finalPosition = stateStore.getState().crossfaderPosition;
                 let description;
                 if (finalPosition < 0.25) {

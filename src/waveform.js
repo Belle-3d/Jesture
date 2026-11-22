@@ -83,7 +83,7 @@ function rangePeak(envelope, bucketSeconds, t0, t1) {
 }
 
 function resizeCanvas(canvas) {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
     const cssWidth = canvas.clientWidth || 1;
     const cssHeight = canvas.clientHeight || 1;
     const width = Math.max(1, Math.floor(cssWidth * dpr));
@@ -241,10 +241,11 @@ class Waveform {
         state.padSeconds = pad * sample;
         const paddedDuration = padded.length * sample;
         const width = view.detail.clientWidth || 300;
+        const detailHeight = view.detail.clientHeight || 72;
 
         const ws = WaveSurfer.create({
             container: view.detail,
-            height: 120,
+            height: detailHeight,
             waveColor: WAVE[deck],
             progressColor: PROGRESS[deck],
             cursorColor: PLAYHEAD[deck],

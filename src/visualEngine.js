@@ -2,6 +2,21 @@ import { stateStore } from './stateStore';
 import { HAND_CONNECTIONS } from '@mediapipe/hands';
 import { audioEngine } from './audioEngine';
 
+const OVERLAY = {
+    left: '#6BF2D3',
+    right: '#C58AFF',
+    cue1: '#F17BC6',
+    cue2: '#57DAB0',
+    labelBg: 'rgba(10, 14, 24, 0.78)',
+    labelBorder: 'rgba(255, 255, 255, 0.22)',
+    text: '#EFF4FC',
+    textMuted: '#B7C5D8',
+    joint: 'rgba(239, 244, 252, 0.72)',
+    fingertip: 'rgba(255, 255, 255, 0.95)',
+};
+
+const FINGERTIPS = new Set([4, 8, 12, 16, 20]);
+
 export class VisualEngine {
     constructor() {
         this.canvas = null;
@@ -63,8 +78,10 @@ export class VisualEngine {
 
         // Draw Landmarks with custom scaling
         if (results.multiHandLandmarks) {
-            for (const landmarks of results.multiHandLandmarks) {
-                this.drawSkeleton(ctx, landmarks, xOffset, yOffset, scaledWidth, scaledHeight);
+            for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+                const meta = handsData?.[i];
+                const accent = meta?.label === 'Left' ? OVERLAY.left : OVERLAY.right;
+                this.drawSkeleton(ctx, results.multiHandLandmarks[i], xOffset, yOffset, scaledWidth, scaledHeight, accent);
             }
         }
 
@@ -84,10 +101,14 @@ export class VisualEngine {
     /**
      * Custom skeleton drawer to match video scaling
      */
-    drawSkeleton(ctx, landmarks, dx, dy, dw, dh) {
-        // Draw Connectors
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#00FF00';
+    drawSkeleton(ctx, landmarks, dx, dy, dw, dh, accent = OVERLAY.left) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = this.withAlpha(accent, 0.48);
+        ctx.shadowColor = this.withAlpha(accent, 0.35);
+        ctx.shadowBlur = 5;
         for (const [start, end] of HAND_CONNECTIONS) {
             const p1 = landmarks[start];
             const p2 = landmarks[end];
@@ -96,16 +117,32 @@ export class VisualEngine {
             ctx.lineTo(p2.x * dw + dx, p2.y * dh + dy);
             ctx.stroke();
         }
+        ctx.shadowBlur = 0;
 
-        // Draw Landmarks
-        ctx.fillStyle = '#FF0000';
-        for (const point of landmarks) {
+        landmarks.forEach((point, index) => {
             const px = point.x * dw + dx;
             const py = point.y * dh + dy;
+            const tip = FINGERTIPS.has(index);
+            const r = tip ? 3.2 : 2.2;
             ctx.beginPath();
-            ctx.arc(px, py, 3, 0, 2 * Math.PI); // Radius 3
+            ctx.arc(px, py, r, 0, 2 * Math.PI);
+            ctx.fillStyle = tip ? OVERLAY.fingertip : OVERLAY.joint;
+            if (tip) {
+                ctx.shadowColor = this.withAlpha(accent, 0.45);
+                ctx.shadowBlur = 6;
+            }
             ctx.fill();
-        }
+            ctx.shadowBlur = 0;
+        });
+        ctx.restore();
+    }
+
+    withAlpha(hex, alpha) {
+        const h = hex.replace('#', '');
+        const r = parseInt(h.slice(0, 2), 16);
+        const g = parseInt(h.slice(2, 4), 16);
+        const b = parseInt(h.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     /**
@@ -478,78 +515,113 @@ export class VisualEngine {
 
     drawFingerPoseDebug(handsData, dx, dy, dw, dh) {
         if (!handsData || !handsData.length) return;
-        const poseLabel = { ONE_FINGER: 'CUE 1', TWO_FINGERS: 'CUE 2' };
+        const poseMeta = {
+            ONE_FINGER: { title: 'CUE 1', accent: OVERLAY.cue1 },
+            TWO_FINGERS: { title: 'CUE 2', accent: OVERLAY.cue2 },
+        };
         const ctx = this.ctx;
         ctx.save();
-        ctx.font = '700 16px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'black';
-        ctx.fillStyle = '#ffffff';
         handsData.forEach((hand) => {
-            const text = poseLabel[hand.fingerPose];
-            if (!text || !hand.landmarks) return;
+            const meta = poseMeta[hand.fingerPose];
+            if (!meta || !hand.landmarks) return;
             const tip = hand.landmarks[hand.fingerPose === 'TWO_FINGERS' ? 12 : 8];
             const x = (1 - tip.x) * dw + dx;
-            const y = tip.y * dh + dy - 18;
-            ctx.strokeText(text, x, y);
-            ctx.fillText(text, x, y);
+            const y = tip.y * dh + dy - 12;
+            this.drawOverlayBadge(ctx, x, y, meta.title, null, meta.accent, 'center', 'bottom');
         });
         ctx.restore();
+    }
+
+    drawOverlayBadge(ctx, cx, cy, title, detail, accent, alignX = 'center', alignY = 'top') {
+        const padX = 10;
+        const padY = 6;
+        const lineGap = 2;
+        ctx.font = '600 13px Rajdhani, Inter, sans-serif';
+        const titleW = ctx.measureText(title).width;
+        let detailW = 0;
+        if (detail) {
+            ctx.font = '500 11px Inter, sans-serif';
+            detailW = ctx.measureText(detail).width;
+        }
+        const w = Math.ceil(Math.max(titleW, detailW) + padX * 2);
+        const h = detail ? padY * 2 + 28 : padY * 2 + 18;
+        let x = cx - w / 2;
+        if (alignX === 'left') x = cx;
+        if (alignX === 'right') x = cx - w;
+        let y = cy;
+        if (alignY === 'bottom') y = cy - h;
+        if (alignY === 'middle') y = cy - h / 2;
+
+        ctx.fillStyle = OVERLAY.labelBg;
+        ctx.strokeStyle = this.withAlpha(accent, 0.55);
+        ctx.lineWidth = 1;
+        this.roundRect(ctx, x, y, w, h, 8, true, true);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = OVERLAY.text;
+        ctx.font = '600 13px Rajdhani, Inter, sans-serif';
+        ctx.fillText(title, x + w / 2, y + padY);
+        if (detail) {
+            ctx.fillStyle = OVERLAY.textMuted;
+            ctx.font = '500 11px Inter, sans-serif';
+            ctx.fillText(detail, x + w / 2, y + padY + 14 + lineGap);
+        }
     }
 
     drawHandInfo(handsData, width, height, dx, dy, dw, dh) {
         if (!handsData) return;
 
-        this.ctx.save();
-        this.ctx.font = "18px Arial";
-        this.ctx.fillStyle = "white";
-        this.ctx.strokeStyle = "black";
-        this.ctx.lineWidth = 3;
+        const state = stateStore.getState();
+        const ctx = this.ctx;
+        ctx.save();
 
-        handsData.forEach(hand => {
+        handsData.forEach((hand) => {
             const wrist = hand.landmarks[0];
-            // Adjust coordinates to match video scaling and mirroring
-            // Video is mirrored so X is flipped relative to canvas width
             const x = (1 - wrist.x) * dw + dx;
             const y = wrist.y * dh + dy;
+            const accent = hand.label === 'Left' ? OVERLAY.left : OVERLAY.right;
 
-            // Show hand label and control type. Fist tags stay off the hand;
-            // a cue pose is labeled at the fingertip instead.
             const controlType = hand.controlType || '';
             const cueLabel = hand.fingerPose === 'ONE_FINGER' || hand.fingerPose === 'TWO_FINGERS';
-            if (!cueLabel && !controlType.includes('(Fist)')) {
-                const text = `${hand.label} | ${controlType}`.toUpperCase();
-                this.ctx.strokeText(text, x, y);
-                this.ctx.fillText(text, x, y);
+            const fistLabel = controlType.includes('(Fist)');
+
+            if (!cueLabel && fistLabel) {
+                const isRight = hand.label === 'Right';
+                const eqVal = isRight ? state.bass : state.treble;
+                const db = Math.round(eqVal * 12);
+                const title = isRight ? 'BASS' : 'TREBLE';
+                const detail = `${db >= 0 ? '+' : ''}${db} DB`;
+                this.drawOverlayBadge(ctx, x, y - 18, title, detail, accent, 'center', 'bottom');
+            } else if (!cueLabel && !fistLabel) {
+                const deckTag = hand.label === 'Left' ? 'DECK A' : 'DECK B';
+                this.drawOverlayBadge(ctx, x, y - 18, deckTag, controlType.toUpperCase(), accent, 'center', 'bottom');
             }
 
-            // Draw Pinch Indicators
             if (hand.pinches && hand.pinches.index) {
                 const indexTip = hand.landmarks[8];
                 const ix = (1 - indexTip.x) * dw + dx;
                 const iy = indexTip.y * dh + dy;
+                const ringR = 14;
 
-                // Circle indicator
-                this.ctx.beginPath();
-                this.ctx.arc(ix, iy, 20, 0, 2 * Math.PI);
+                ctx.beginPath();
+                ctx.arc(ix, iy, ringR, 0, 2 * Math.PI);
+                ctx.strokeStyle = this.withAlpha(accent, 0.9);
+                ctx.lineWidth = 2;
+                ctx.shadowColor = this.withAlpha(accent, 0.55);
+                ctx.shadowBlur = 8;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
 
-                if (hand.label === 'Right') {
-                    this.ctx.fillStyle = "rgba(255, 215, 0, 0.8)"; // Gold for master
-                } else {
-                    this.ctx.fillStyle = "rgba(138, 43, 226, 0.8)"; // Purple for crossfader
-                }
-                this.ctx.fill();
-
-                // Label
-                this.ctx.fillStyle = "white";
-                const label = hand.label === 'Right' ? 'MASTER ↕' : 'XFADE ↔';
-                this.ctx.strokeText(label, ix + 25, iy);
-                this.ctx.fillText(label, ix + 25, iy);
+                const isRight = hand.label === 'Right';
+                const title = isRight ? 'MASTER' : 'CROSSFADER';
+                const detail = isRight
+                    ? `${Math.round(state.masterVolume * 100)}%`
+                    : `${Math.round(state.crossfaderPosition * 100)}%`;
+                this.drawOverlayBadge(ctx, ix + ringR + 10, iy, title, detail, accent, 'left', 'middle');
             }
         });
-        this.ctx.restore();
+        ctx.restore();
     }
     /**
      * Draw audio-reactive visualizer around canvas edges

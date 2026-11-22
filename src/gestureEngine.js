@@ -33,11 +33,19 @@ export class GestureEngine {
         // cannot flicker into a cue or a pinch-to-play tap.
         this.poseHold = { Left: false, Right: false };
         this.fistCooldown = { Left: 0, Right: 0 };
+        this.poseStreak = {
+            Left: { pose: 'NONE', count: 0 },
+            Right: { pose: 'NONE', count: 0 },
+        };
+        this.stableFinger = { Left: 'NONE', Right: 'NONE' };
+        this.closedStreak = { Left: 0, Right: 0 };
 
         // Minimum movement threshold to distinguish tap from drag (smaller for quicker response)
         this.movementThreshold = 0.01;
         this.minPinchTapFrames = 4;
         this.fistCooldownFrames = 6;
+        this.cueHoldFrames = 3;
+        this.fistArmFrames = 5;
     }
 
     process(results) {
@@ -60,8 +68,11 @@ export class GestureEngine {
             // 1. Pinch Detection
             const pinches = this.detectPinches(landmarks);
 
-            // 2. Open vs Fist, with hysteresis so a fist does not flicker Open
-            const fingerPose = this.detectFingerCount(landmarks);
+            // 2. Open vs Fist. Cue poses must hold for a few frames so the
+            // tag and the trigger do not flicker, and a single missed frame
+            // cannot latch a point as a fist.
+            const rawFinger = this.detectFingerCount(landmarks);
+            const fingerPose = this.settleFingerPose(label, rawFinger);
             const gesture = this.stableGesture(label, this.curledFingerCount(landmarks), fingerPose);
 
             const pinchActive = gesture === 'Open' && (pinches.index || pinches.middle);
@@ -132,6 +143,9 @@ export class GestureEngine {
             if (!seenHands.has(hand)) {
                 this.cueLatch[hand] = null;
                 this.poseHold[hand] = false;
+                this.stableFinger[hand] = 'NONE';
+                this.poseStreak[hand] = { pose: 'NONE', count: 0 };
+                this.closedStreak[hand] = 0;
             }
         }
         return handsData;
@@ -169,17 +183,39 @@ export class GestureEngine {
         return curledCount;
     }
 
+    settleFingerPose(label, raw) {
+        const streak = this.poseStreak[label];
+        if (raw === streak.pose) streak.count += 1;
+        else {
+            streak.pose = raw;
+            streak.count = 1;
+        }
+        const current = this.stableFinger[label];
+        const enteringCue = raw === 'ONE_FINGER' || raw === 'TWO_FINGERS';
+        const holdingCue = current === 'ONE_FINGER' || current === 'TWO_FINGERS';
+        const need = enteringCue ? this.cueHoldFrames : (holdingCue ? 5 : 3);
+        if (streak.count >= need) this.stableFinger[label] = raw;
+        return this.stableFinger[label];
+    }
+
     /**
-     * Enter a fist at 3+ curled fingers. A recognized point or peace sign
-     * does not start the latch (Cue 1 is three curled fingers). Once latched,
-     * stay closed until only one finger is still curled so a fist cannot
-     * flicker open into a cue or a pinch tap.
+     * A point or peace sign is not a fist, and it releases a latched fist.
+     * A real fist must stay closed for several frames before it latches, then
+     * it stays closed until the hand opens or a cue pose holds.
      */
     stableGesture(label, curledCount, fingerPose) {
         const cueLike = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
+        if (cueLike) {
+            this.closedStreak[label] = 0;
+            this.poseHold[label] = false;
+            return 'Open';
+        }
+        if (curledCount >= 3) this.closedStreak[label] += 1;
+        else this.closedStreak[label] = 0;
+
         if (this.poseHold[label]) {
             if (curledCount <= 1) this.poseHold[label] = false;
-        } else if (curledCount >= 3 && !cueLike) {
+        } else if (this.closedStreak[label] >= this.fistArmFrames) {
             this.poseHold[label] = true;
         }
         return this.poseHold[label] ? 'Closed' : 'Open';

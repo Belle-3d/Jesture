@@ -23,7 +23,7 @@ Mix two tracks with nothing but your hands and a webcam, right in the browser.
 
 A DJ mixer is a wall of knobs and faders. Every one of them is something your hands already know how to do: pinch, slide, raise, clench.
 
-Lumaire takes the hardware away and keeps the hands. A webcam tracks both of your hands in real time, and each gesture maps onto a control on a two-deck mixer. You pinch to start a track, slide to crossfade, and clap to bring the two songs onto the same beat. There is nothing to install and nothing to plug in.
+Lumaire takes the hardware away and keeps the hands. A webcam tracks both of your hands in real time, and each gesture maps onto a control on a two-deck mixer. You pinch to start a track, slide to crossfade, and raise a fist to shape the EQ. There is nothing to install and nothing to plug in.
 
 The question behind it is simple: **can gestures in mid-air feel as direct as touching a real mixer?**
 
@@ -58,7 +58,6 @@ Your left hand runs **Deck A** and the crossfader. Your right hand runs **Deck B
 | **Right hand** | Quick pinch | Play or pause Track B |
 | | Pinch and move up or down | Master volume |
 | | Make a fist and move up or down | Bass up or down |
-| **Both hands** | Clap | Beat-match: Track B is sped up or slowed down to Track A's tempo and lined up on the beat |
 
 ### No camera? Use the keyboard or mouse
 
@@ -71,7 +70,6 @@ Your left hand runs **Deck A** and the crossfader. Your right hand runs **Deck B
 | `←` / `→` | Crossfader |
 | Hold `T` + `↑` / `↓` | Treble |
 | Hold `B` + `↑` / `↓` | Bass |
-| `C` | Clap cue (visual feedback only) |
 | Click Master, Bass or Treble | Nudge that value up (hold `Shift` to nudge it down) |
 | Click the Crossfader display | Jump the crossfader to that spot |
 
@@ -86,14 +84,14 @@ Lumaire is split into four small engines that never call each other directly. Th
                      │
                      ▼
             ┌─────────────────┐
-            │ Gesture engine  │  pinch, fist and clap detection,
+            │ Gesture engine  │  pinch and fist detection,
             │                 │  tap vs. drag, mirror correction
             └────────┬────────┘
                      │ writes
                      ▼
             ┌─────────────────┐
             │   State store   │  volume · crossfader · bass · treble
-            │                 │  deck A/B playing · last clap
+            │                 │  deck A/B playing
             └───┬─────────┬───┘
           reads │         │ reads
                 ▼         ▼
@@ -101,17 +99,16 @@ Lumaire is split into four small engines that never call each other directly. Th
    │  Audio engine  │  │  Visual engine   │
    │  Tone.js       │  │  Canvas 2D       │
    │  two decks,    │  │  hand skeletons, │
-   │  EQ, fader,    │  │  mixer HUD,      │
-   │  beat-matching │  │  live spectrum   │
+   │  EQ, fader     │  │  mixer HUD,      │
+   │                │  │  live spectrum   │
    └────────────────┘  └──────────────────┘
 ```
 
 A few details worth knowing:
 
 - **Sound never waits for graphics.** Playback is scheduled on the Web Audio clock through Tone.js, so the music stays steady even if the video frame rate drops.
-- **Beat-matching on a clap.** When a track loads, its tempo is estimated from its rhythm (an autocorrelation over 60 to 180 BPM). A clap smoothly adjusts Track B's speed to match Track A, within ±10% so it doesn't sound warped, then shifts it so the beats line up.
 - **EQ like a real mixer.** Bass and treble are shelf filters (below 200 Hz and above 3 kHz) with ±12 dB of range.
-- **Gestures that don't misfire.** A fist always wins over a pinch, a pinch has to move before it counts as a drag, and a clap must be a fast approach with a short cooldown, so resting your hands together doesn't trigger it.
+- **Gestures that don't misfire.** A fist always wins over a pinch, and a pinch has to move before it counts as a drag.
 
 ---
 
@@ -141,8 +138,8 @@ Lumaire/
 │   └── banner.png        README banner
 ├── src/
 │   ├── main.js           Wiring, track loading, keyboard and mouse controls
-│   ├── gestureEngine.js  Turns hand landmarks into pinch, fist and clap gestures
-│   ├── audioEngine.js    Two decks, EQ, crossfader, tempo detection, beat-matching
+│   ├── gestureEngine.js  Turns hand landmarks into pinch and fist gestures
+│   ├── audioEngine.js    Two decks, EQ, crossfader
 │   ├── visualEngine.js   Draws the video, hand skeletons, mixer HUD and spectrum
 │   ├── stateStore.js     Shared state with subscribe and update
 │   └── style.css         Interface styling

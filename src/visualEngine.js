@@ -6,10 +6,6 @@ export class VisualEngine {
     constructor() {
         this.canvas = null;
         this.ctx = null;
-
-        // Clap display state: keep showing notification for this many ms after detection
-        this.lastClapTs = 0;
-        this.clapDisplayMs = 1000; // 1000ms = 1s
     }
 
     init(canvasElement) {
@@ -72,9 +68,6 @@ export class VisualEngine {
         // Draw DJ UI (not mirrored, full canvas overlay)
         const state = stateStore.getState();
         this.drawDJInterface(ctx, width, height, state);
-
-        // Show clap notification if detected in this frame
-        this.drawClapNotification(handsData, ctx, width, height);
 
         // Draw Hand Info (requires same coordinate transform as video)
         this.drawHandInfo(handsData, width, height, xOffset, yOffset, scaledWidth, scaledHeight);
@@ -662,52 +655,6 @@ export class VisualEngine {
 
             this.ctx.restore();
         }
-    }
-
-    /**
-     * Draw a short clap notification when gestureEngine marks clap: true
-     */
-    drawClapNotification(handsData, ctx, width, height) {
-        if (!handsData || !Array.isArray(handsData) || !ctx) return;
-
-        // If a clap is present in this frame, update timestamp
-        const clapDetectedNow = handsData.some(h => h.clap);
-        if (clapDetectedNow) {
-            this.lastClapTs = Date.now();
-        }
-
-        // Also react to programmatic clap triggers stored in stateStore (keyboard/mouse)
-        try {
-            const s = stateStore.getState();
-            const stateClapTs = s && s.lastClapTs ? s.lastClapTs : 0;
-            if (stateClapTs && stateClapTs > this.lastClapTs) {
-                this.lastClapTs = stateClapTs;
-            }
-        } catch (e) {
-            // ignore if stateStore isn't available
-        }
-
-        // Show notification while within clapDisplayMs since last clap
-        if (Date.now() - this.lastClapTs > this.clapDisplayMs) return;
-
-        ctx.save();
-        // Notification styling
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = '700 26px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255, 215, 0, 0.98)'; // bright yellow
-        ctx.shadowBlur = 18;
-        ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
-
-        const x = width / 2;
-        const y = 95;
-        ctx.fillText('👏 CLAP', x, y);
-
-        ctx.font = '500 12px Inter, sans-serif';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.shadowBlur = 0;
-        ctx.fillText('Gesture detected and processed', x, y + 22);
-        ctx.restore();
     }
 }
 

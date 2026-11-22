@@ -69,13 +69,6 @@ function populateHintsPanel() {
                     <p>Hold B and use ↑/↓ to change Bass; hold T and use ↑/↓ to change Treble.</p>
                 </div>
             </div>
-            <div class="hint-section">
-                <span class="hint-icon">👏</span>
-                <div class="hint-content">
-                    <strong id="hint-clap-title">Clap</strong>
-                    <p id="hint-clap">Clap = Trigger action (or in keyboard press C)</p>
-                </div>
-            </div>
         
         `;
         // replace or append
@@ -99,9 +92,7 @@ const CONTROLS = {
     incBass(delta = 0.25) { const s = stateStore.getState(); audioEngine.setBass(s.bass + delta); },
     decBass(delta = 0.25) { const s = stateStore.getState(); audioEngine.setBass(s.bass - delta); },
     incTreble(delta = 0.25) { const s = stateStore.getState(); audioEngine.setTreble(s.treble + delta); },
-    decTreble(delta = 0.25) { const s = stateStore.getState(); audioEngine.setTreble(s.treble - delta); },
-    // Clap trigger: set a short state flag so UI can show it
-    triggerClap() { stateStore.setState({ lastClapTs: Date.now() }); console.log('Clap triggered via keyboard/mouse'); }
+    decTreble(delta = 0.25) { const s = stateStore.getState(); audioEngine.setTreble(s.treble - delta); }
 };
 
 // Keyboard shortcuts
@@ -150,9 +141,6 @@ window.addEventListener('keydown', (ev) => {
         case 'arrowright':
             CONTROLS.moveCross(0.25);
             break;
-        case 'c': // clap trigger
-            CONTROLS.triggerClap();
-            break;
     }
 });
 
@@ -178,16 +166,6 @@ crossfaderDisplay?.addEventListener('click', (e) => {
 
 bassDisplay?.addEventListener('click', (e) => { if (e.shiftKey) CONTROLS.decBass(); else CONTROLS.incBass(); });
 trebleDisplay?.addEventListener('click', (e) => { if (e.shiftKey) CONTROLS.decTreble(); else CONTROLS.incTreble(); });
-
-// Update hints panel clap text briefly when triggered via keyboard/mouse or gestures
-function showClapHintTemporary() {
-    const el = document.getElementById('hint-clap');
-    if (!el) return;
-    const prev = el.textContent;
-    el.textContent = 'Clap = Triggered!';
-    setTimeout(() => { el.textContent = prev; }, 1500);
-}
-
 
 // =============================================
 // TRACK UPLOAD HANDLERS
@@ -290,11 +268,6 @@ function onResults(results) {
 
     // Draw everything
     visualEngine.draw(results, handsData);
-
-    // If a clap was detected by gestureEngine, briefly update hints panel
-    if (handsData && handsData.some(h => h.clap)) {
-        showClapHintTemporary();
-    }
 }
 
 const hands = new Hands({

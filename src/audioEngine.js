@@ -15,14 +15,6 @@ export class AudioEngine {
         this.bassFilter = null;
         this.trebleFilter = null;
 
-        // Per-track gain nodes for smooth crossfades and alignment
-        this.trackAGain = null;
-        this.trackBGain = null;
-        // Pitch-shift nodes (used to compensate pitch when adjusting playbackRate)
-        this.trackAPitch = null;
-        this.trackBPitch = null;
-        this.trackABPM = null;
-        this.trackBBPM = null;
         // Pause state tracking for resume functionality
         this.pauseState = {
             A: { isPaused: false, pauseTime: 0, startTime: 0, audibleAt: 0 },
@@ -54,192 +46,6 @@ export class AudioEngine {
         return 1;
     }
 
-            /**
-     * Estimate BPM from an AudioBuffer using a simple autocorrelation of the onset envelope.
-     * Returns a numeric BPM estimate (floating).
-     */
-    estimateBPM(audioBuffer) {
-        try {
-            const sampleRate = audioBuffer.sampleRate;
-            const channelData = audioBuffer.numberOfChannels > 0 ? audioBuffer.getChannelData(0) : null;
-            if (!channelData) return 0;
-
-            // Work with up to first 120 seconds to keep computation reasonable
-            const maxSeconds = Math.min(120, audioBuffer.duration);
-            const maxSamples = Math.floor(maxSeconds * sampleRate);
-            const data = channelData.subarray(0, maxSamples);
-
-            // Downsample to ~2000Hz for performance
-            const targetRate = 2000;
-            const hop = Math.max(1, Math.floor(sampleRate / targetRate));
-            const down = new Float32Array(Math.floor(data.length / hop));
-            for (let i = 0, j = 0; i < data.length && j < down.length; i += hop, j++) down[j] = Math.abs(data[i]);
-
-            // Smooth envelope with moving average (window ~50ms)
-            const smoothWindow = Math.max(1, Math.floor((0.05 * targetRate)));
-            const env = new Float32Array(down.length);
-            let sum = 0;
-            for (let i = 0; i < down.length; i++) {
-                sum += down[i];
-                if (i >= smoothWindow) sum -= down[i - smoothWindow];
-                env[i] = sum / Math.min(i + 1, smoothWindow);
-            }
-
-            // Autocorrelation over reasonable BPM range (60..180)
-            const minBPM = 60, maxBPM = 180;
-            const minLag = Math.floor((60 / maxBPM) * targetRate);
-            const maxLag = Math.ceil((60 / minBPM) * targetRate);
-
-            let bestLag = -1;
-            let bestVal = -Infinity;
-            for (let lag = minLag; lag <= maxLag; lag++) {
-                let val = 0;
-                for (let i = 0; i + lag < env.length; i++) val += env[i] * env[i + lag];
-                if (val > bestVal) {
-                    bestVal = val;
-                    bestLag = lag;
-                }
-            }
-
-            if (bestLag <= 0) return 0;
-            const periodSec = bestLag / targetRate;
-            const bpm = 60 / periodSec;
-            return bpm;
-        } catch (e) {
-            console.warn('estimateBPM error', e);
-            return 0;
-        }
-    }
-
-    /**
-     * Smoothly set playbackRate on a player over duration (seconds).
-     * Preserves buffer position while ramping so the waveform playhead stays accurate.
-     * Returns a Promise that resolves when ramp completes.
-     */
-    smoothSetPlaybackRate(player, targetRate, duration = 1.5) {
-        return new Promise((resolve) => {
-            if (!player) return resolve();
-            const startRate = this.getPlaybackRate(player) || 1;
-            if (Math.abs(startRate - targetRate) < 0.0005) return resolve();
-
-            const steps = Math.max(6, Math.floor(duration * 30));
-            let step = 0;
-            const delta = targetRate - startRate;
-            const interval = (duration * 1000) / steps;
-
-            const applyRate = (r) => {
-                try {
-                    const deck = player === this.trackAPlayer ? 'A' : player === this.trackBPlayer ? 'B' : null;
-                    let bufferPos = null;
-                    if (deck) {
-                        const pause = this.pauseState[deck];
-                        const playing = pause && !pause.isPaused && player.state === 'started' && player.buffer;
-                        if (playing) bufferPos = this.getTrackPosition(deck);
-                    }
-                    if (player.playbackRate && typeof player.playbackRate === 'object' && player.playbackRate.value !== undefined) {
-                        player.playbackRate.value = r;
-                    } else if (typeof player.playbackRate === 'number') {
-                        player.playbackRate = r;
-                    } else if (player.set) {
-                        player.set({ playbackRate: r });
-                    }
-                    if (bufferPos != null && deck) {
-                        const safeRate = r || 1;
-                        this.pauseState[deck].startTime = Tone.now() - (bufferPos / safeRate);
-                    }
-                } catch (e) {
-                    // ignore errors while ramping
-                }
-            };
-
-            const timer = setInterval(() => {
-                step++;
-                const r = startRate + (delta * (step / steps));
-                applyRate(r);
-                if (step >= steps) {
-                    clearInterval(timer);
-                    // final set to ensure exact value
-                    applyRate(targetRate);
-                    resolve();
-                }
-            }, interval);
-        });
-    }
-
-    /**
-     * Apply tempo matching so Track B follows Track A's BPM.
-     * Uses a gentle ramp and pitch compensation. If required rate is large,
-     * only nudge toward it and log a warning for manual correction/time-stretch.
-     */
-    async applyTempoMatch() {
-        if (!this.trackABPM || !this.trackBBPM || !this.trackBPlayer) return;
-        const target = this.trackABPM;
-        const source = this.trackBBPM;
-        if (source <= 0) return;
-
-        const rate = target / source;
-        if (!isFinite(rate) || rate <= 0) return;
-
-        // Desired exact rate
-        const desiredRate = rate;
-
-        // If change is small (<= 10%) allow full change, otherwise nudge and warn.
-        const maxAutoChange = 0.10; // 10%
-        const change = Math.abs(desiredRate - 1);
-        let appliedRate;
-        if (change <= maxAutoChange) {
-            appliedRate = desiredRate;
-        } else {
-            // nudge towards desired but limit to +/- 10% to avoid artifacts
-            appliedRate = 1 + Math.sign(desiredRate - 1) * maxAutoChange;
-            console.warn(`BPM difference large (${(desiredRate).toFixed(3)}). Auto-nudging to ${appliedRate.toFixed(3)}. For large changes use time-stretching or manual match.`);
-        }
-
-        // Clamp to safe extremes as extra guard
-        appliedRate = Math.max(0.7, Math.min(1.3, appliedRate));
-
-        // Smoothly ramp playbackRate
-        await this.smoothSetPlaybackRate(this.trackBPlayer, appliedRate, 1.2);
-
-
-        // Compensate pitch change using PitchShift (semitones = 12*log2(rate))
-        const semitones = 12 * Math.log2(appliedRate || 1);
-        const compensation = -semitones;
-        if (this.trackBPitch) {
-            try {
-                if (this.trackBPitch.pitch && this.trackBPitch.pitch.value !== undefined) {
-                    this.trackBPitch.pitch.value = compensation;
-                } else if (this.trackBPitch.set) {
-                    this.trackBPitch.set({ pitch: compensation });
-                } else {
-                    this.trackBPitch.pitch = compensation;
-                }
-            } catch (e) {
-                console.warn('Unable to set PitchShift for Track B', e);
-            }
-        }
-
-        // Maintain correct timing bookkeeping: recompute startTime so buffer position is preserved
-        try {
-            const now = Tone.now();
-            const pauseB = this.pauseState.B;
-            if (!pauseB.isPaused && this.trackBPlayer && this.trackBPlayer.buffer) {
-                // compute current buffer position using previous startTime and previous effective rate
-                // note: getPlaybackRate returns current rate (we already ramped to appliedRate)
-                // to estimate previous bufferPos we approximate using appliedRate (best-effort)
-                const prevRate = this.getPlaybackRate(this.trackBPlayer) || appliedRate;
-                const elapsed = now - pauseB.startTime;
-                const bufferPos = ((elapsed * prevRate) % this.trackBPlayer.buffer.duration + this.trackBPlayer.buffer.duration) % this.trackBPlayer.buffer.duration;
-                // after changing rate, set startTime to preserve bufferPos
-                pauseB.startTime = now - (bufferPos / appliedRate);
-            }
-        } catch (e) {
-            // non-fatal
-        }
-
-        console.log(`Applied tempo match: target=${target.toFixed(2)} BPM, source=${source.toFixed(2)} BPM, appliedRate=${appliedRate.toFixed(3)}, pitchComp=${compensation.toFixed(2)}st`);
-    }
-
     async init() {
         if (this.initialized) return;
 
@@ -266,14 +72,6 @@ export class AudioEngine {
         this.bassFilter.connect(this.analyser);
 
         console.log('EQ Filters & Analyser initialized');
-
-        // Create per-track gain nodes and connect into the EQ chain
-        this.trackAGain = new Tone.Gain(1).connect(this.trebleFilter);
-        this.trackBGain = new Tone.Gain(1).connect(this.trebleFilter);
-
-        // Create pitch-shift nodes and connect them into the per-track chains
-        this.trackAPitch = new Tone.PitchShift(0).connect(this.trackAGain);
-        this.trackBPitch = new Tone.PitchShift(0).connect(this.trackBGain);
 
         // Initialize Instruments (for sequencer - keeping for backwards compatibility)
         this.instruments = {
@@ -305,107 +103,6 @@ export class AudioEngine {
 
         this.initialized = true;
         this.startSequencer();
-    }
-
-    /**
-     * Align the two loaded tracks to the current transport beat on a clap.
-     * Waits for tempo ramp if present, then nudges phase by restarting B at the computed offset.
-     */
-    async alignTracksOnClap() {
-        if (!this.trackAPlayer || !this.trackBPlayer) return;
-
-        // First apply tempo match (may ramp)
-        try {
-            await this.applyTempoMatch();
-        } catch (e) {
-            console.warn('applyTempoMatch error', e);
-        }
-
-        // Get beat duration from transport
-        const bpm = Tone.Transport.bpm.value || 120;
-        const beatDuration = 60 / bpm;
-
-        // Helper to compute playback position for a player, taking playbackRate into account
-        const getPosition = (player, trackKey) => {
-            try {
-                if (!player || !player.buffer) return 0;
-                const pause = this.pauseState[trackKey];
-                const bufferDur = player.buffer.duration || 0;
-                if (pause.isPaused) {
-                    // pauseTime already stores buffer-position in seconds (see pauseTrack)
-                    return pause.pauseTime % bufferDur;
-                }
-                // playing: elapsed = now - startTime
-                const elapsed = Tone.now() - pause.startTime;
-                const rate = this.getPlaybackRate(player) || 1;
-                // buffer position advances at rate * wall-time
-                const pos = ((elapsed * rate) % bufferDur + bufferDur) % bufferDur;
-                return pos;
-            } catch (e) {
-                console.warn('getPosition error', e);
-                return 0;
-            }
-        };
-
-        try {
-            const posA = getPosition(this.trackAPlayer, 'A');
-            const posB = getPosition(this.trackBPlayer, 'B');
-
-            // Position within the current beat
-            const inBeatA = posA % beatDuration;
-            const inBeatB = posB % beatDuration;
-
-            // Compute smallest delta to align B to A (positive means B is behind and needs forward shift)
-            let delta = inBeatA - inBeatB;
-            // wrap to [-beatDuration/2, beatDuration/2]
-            if (delta > beatDuration / 2) delta -= beatDuration;
-            if (delta < -beatDuration / 2) delta += beatDuration;
-
-            // New position for B to align to A
-            const bufferDurB = this.trackBPlayer.buffer ? this.trackBPlayer.buffer.duration : 0;
-            let newPosB = (posB + delta + bufferDurB) % bufferDurB;
-
-            // small safety: if delta is tiny (<10ms) skip restart
-            if (Math.abs(delta) < 0.01) {
-                console.log('Tracks already aligned (delta < 10ms)');
-                return;
-            }
-
-            // Restart B quickly with a short crossfade
-            const now = Tone.now();
-            const fadeTime = 0.08;
-
-            // Perform crossfade: fade out B, restart at new offset, fade in
-            if (this.trackBGain && this.trackBPlayer) {
-                const gainNode = this.trackBGain.gain && this.trackBGain.gain instanceof AudioParam ? this.trackBGain.gain : null;
-                if (gainNode) {
-                    // linear ramp to near-zero
-                    gainNode.cancelScheduledValues(now);
-                    gainNode.linearRampToValueAtTime(0.0001, now + fadeTime);
-
-                    // Stop and restart B shortly after fade
-                    setTimeout(() => {
-                        try {
-                            // stop existing playback
-                            this.trackBPlayer.stop();
-                            const rateB = this.getPlaybackRate(this.trackBPlayer) || 1;
-                            this.pauseState.B.startTime = Tone.now() - (newPosB / rateB);
-                            this.trackBPlayer.start(undefined, newPosB);
-
-                            // ensure gain is near 0 then ramp up
-                            gainNode.setValueAtTime(0.0001, Tone.now());
-                            gainNode.linearRampToValueAtTime(1.0, Tone.now() + fadeTime + 0.01);
-                        } catch (e) {
-                            console.warn('alignTracksOnClap restart error', e);
-                        }
-                    }, (fadeTime + 0.01) * 1000);
-                }
-            }
-
-            console.log(`Tracks aligned on clap: delta=${(delta * 1000).toFixed(1)}ms`);
-        } catch (err) {
-            console.error('Error aligning tracks on clap', err);
-        }
     }
 
     /**
@@ -573,14 +270,14 @@ export class AudioEngine {
                 onload: () => {
                     console.log(`Track ${track} loaded successfully: ${file.name}`);
 
-                    // Store the player and connect to per-track gain
+                    // Store the player and connect it into the EQ chain
                     if (track === 'A') {
                         this.trackAPlayer = player;
-                        if (this.trackAPitch) player.connect(this.trackAPitch);
+                        if (this.trebleFilter) player.connect(this.trebleFilter);
                         stateStore.setState({ trackALoaded: true });
                     } else {
                         this.trackBPlayer = player;
-                        if (this.trackBPitch) player.connect(this.trackBPitch);
+                        if (this.trebleFilter) player.connect(this.trebleFilter);
                         stateStore.setState({ trackBLoaded: true });
                     }
 
@@ -594,19 +291,6 @@ export class AudioEngine {
                     const db = volume === 0 ? -Infinity : -40 * (1 - volume);
                     player.volume.value = db;
                     console.log(`Track ${track} volume set to ${db.toFixed(1)}dB`);
-
-                    // Estimate BPM asynchronously (non-blocking)
-                    try {
-                        const audioBuf = player.buffer && typeof player.buffer.get === 'function' ? player.buffer.get() : player.buffer;
-                        if (audioBuf) {
-                            const estimated = this.estimateBPM(audioBuf);
-                            if (track === 'A') this.trackABPM = estimated;
-                            else this.trackBBPM = estimated;
-                            console.log(`Estimated BPM for Track ${track}: ${estimated.toFixed(1)}`);
-                        }
-                    } catch (e) {
-                        console.warn('BPM estimation failed', e);
-                    }
 
                     resolve(player);
                 },

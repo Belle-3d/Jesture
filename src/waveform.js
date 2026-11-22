@@ -401,7 +401,7 @@ class Waveform {
     }
 
     drawCueLine(ctx, x, height, color, dpr) {
-        const lineWidth = Math.max(1, Math.round(dpr));
+        const lineWidth = Math.max(2, Math.round(dpr * 2));
         ctx.fillStyle = color;
         ctx.fillRect(x - lineWidth / 2, 0, lineWidth, height);
     }

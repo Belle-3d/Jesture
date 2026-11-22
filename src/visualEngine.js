@@ -6,14 +6,21 @@ export class VisualEngine {
     constructor() {
         this.canvas = null;
         this.ctx = null;
+        this.mixerCanvas = null;
     }
 
     init(canvasElement) {
         this.canvas = canvasElement;
         this.ctx = canvasElement.getContext('2d');
+        this.mixerCanvas = document.getElementById('mixer-hud');
         this.resize();
 
-        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('resize', () => {
+            this.resize();
+            this.drawMixerHud();
+        });
+        stateStore.subscribe(() => this.drawMixerHud());
+        requestAnimationFrame(() => this.drawMixerHud());
     }
 
     resize() {
@@ -66,9 +73,7 @@ export class VisualEngine {
         // Draw Audio Visualizer (edge waves)
         this.drawAudioVisualizer(ctx, width, height);
 
-        // Draw DJ UI (not mirrored, full canvas overlay)
-        const state = stateStore.getState();
-        this.drawDJInterface(ctx, width, height, state);
+        this.drawMixerHud();
 
         // Draw Hand Info (requires same coordinate transform as video)
         this.drawHandInfo(handsData, width, height, xOffset, yOffset, scaledWidth, scaledHeight);
@@ -109,6 +114,44 @@ export class VisualEngine {
     /**
      * Draw the DJ mixing interface
      */
+    drawMixerHud() {
+        if (!this.mixerCanvas) this.mixerCanvas = document.getElementById('mixer-hud');
+        const canvas = this.mixerCanvas;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = canvas.clientWidth || 1;
+        const cssH = canvas.clientHeight || 1;
+        const pixelW = Math.max(1, Math.floor(cssW * dpr));
+        const pixelH = Math.max(1, Math.floor(cssH * dpr));
+        if (canvas.width !== pixelW || canvas.height !== pixelH) {
+            canvas.width = pixelW;
+            canvas.height = pixelH;
+        }
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cssW, cssH);
+
+        const state = stateStore.getState();
+        const layoutW = 360;
+        const layoutH = 250;
+        const scale = Math.min(1, cssW / layoutW, cssH / layoutH);
+        const midX = layoutW / 2;
+        const barsY = 68;
+        const xfadeY = 220;
+
+        ctx.save();
+        ctx.translate((cssW - layoutW * scale) / 2, (cssH - layoutH * scale) / 2);
+        ctx.scale(scale, scale);
+        this.drawMasterVolume(ctx, midX, barsY, state);
+        this.drawEQIndicator(ctx, midX - 50, barsY, 'Bass', state.bass, '#F5C77E');
+        this.drawEQIndicator(ctx, midX + 50, barsY, 'Treble', state.treble, '#A8C5D9');
+        this.drawCrossfader(ctx, midX, xfadeY, state);
+        ctx.restore();
+    }
+
     drawDJInterface(ctx, width, height, state) {
         ctx.save();
 
@@ -124,8 +167,6 @@ export class VisualEngine {
         this.drawEQIndicator(ctx, rightGroupX - 50, bottomY, 'Bass', state.bass, '#F5C77E');
         this.drawEQIndicator(ctx, rightGroupX + 50, bottomY, 'Treble', state.treble, '#A8C5D9');
 
-        // Draw per-track play buttons on the right side (near other controls)
-        this.drawTrackButtons(ctx, width - 160, 80, state);
         ctx.restore();
     }
 

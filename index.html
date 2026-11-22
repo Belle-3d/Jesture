@@ -13,108 +13,105 @@
     <video id="input_video" style="display: none;"></video>
     <canvas id="output_canvas"></canvas>
 
-    <!-- DJ Control Panel -->
-    <div id="track-panel">
-      <!-- Branding Header -->
-      <div class="brand-header">
-        <h1 class="brand-name">Lumaire</h1>
-        <p class="brand-tagline">A DJ controller you play in mid-air</p>
+    <!-- Gesture Controls (top right) -->
+    <div id="hints-panel" class="hints collapsed">
+      <div id="hints-header" class="hints-header">
+        <span>Gesture Controls</span>
+        <span class="hints-toggle">▼</span>
       </div>
-
-      <!-- Track A -->
-      <div class="track-control track-a">
-        <label>🟢 Track A:</label>
-        <input type="file" id="track-a-input" accept="audio/*">
-      </div>
-      <div class="waveform waveform-a" data-deck="A">
-        <div class="waveform-label">Full track</div>
-        <canvas class="waveform-overview-canvas" aria-label="Track A overview"></canvas>
-        <div class="waveform-times">
-          <span class="waveform-start">0:00</span>
-          <span class="waveform-remaining">−0:00</span>
-          <span class="waveform-total">0:00</span>
-        </div>
-        <div class="waveform-detail" role="img" aria-label="Track A waveform"></div>
-        <div class="waveform-times">
-          <span class="waveform-window-start">—</span>
-          <span class="waveform-elapsed">0:00</span>
-          <span class="waveform-window-end">—</span>
-        </div>
-        <div class="waveform-status"></div>
-      </div>
-
-      <!-- Track B -->
-      <div class="track-control track-b">
-        <label>🔴 Track B:</label>
-        <input type="file" id="track-b-input" accept="audio/*">
-      </div>
-      <div class="waveform waveform-b" data-deck="B">
-        <div class="waveform-label">Full track</div>
-        <canvas class="waveform-overview-canvas" aria-label="Track B overview"></canvas>
-        <div class="waveform-times">
-          <span class="waveform-start">0:00</span>
-          <span class="waveform-remaining">−0:00</span>
-          <span class="waveform-total">0:00</span>
-        </div>
-        <div class="waveform-detail" role="img" aria-label="Track B waveform"></div>
-        <div class="waveform-times">
-          <span class="waveform-window-start">—</span>
-          <span class="waveform-elapsed">0:00</span>
-          <span class="waveform-window-end">—</span>
-        </div>
-        <div class="waveform-status"></div>
-      </div>
-
-      <!-- Individual Play Buttons -->
-      <div class="play-buttons">
-        <button id="play-track-a-btn" class="play-all-btn">▶️ Play A</button>
-        <button id="play-track-b-btn" class="play-all-btn">▶️ Play B</button>
-      </div>
-
-      <!-- Status Displays -->
-      <div class="status-row">
-        <div id="master-volume-display" class="status-display master">Master: 70%</div>
-        <div id="crossfader-display" class="status-display crossfader">Crossfader: 50%</div>
-      </div>
-      <div class="status-row">
-        <div id="bass-display" class="status-display bass">Bass: 0dB</div>
-        <div id="treble-display" class="status-display treble">Treble: 0dB</div>
-      </div>
-
-      <!-- Control Hints (Collapsible) -->
-      <div id="hints-panel" class="hints">
-        <div id="hints-header" class="hints-header">
-          <span>Gesture Controls</span>
-          <span class="hints-toggle">▼</span>
-        </div>
-        <div id="hints-content" class="hints-content">
-          <div class="hint-section">
-            <span class="hint-icon">🖐️</span>
-            <div class="hint-content">
-              <strong>Right Hand</strong>
-              <p>Pinch = Play/Pause</p>
-              <p>Pinch + ⭥ = Volume</p>
-            </div>
+      <div id="hints-content" class="hints-content">
+        <div class="hint-section">
+          <span class="hint-icon">🖐️</span>
+          <div class="hint-content">
+            <strong>Right Hand</strong>
+            <p>Pinch = Play/Pause</p>
+            <p>Pinch + ⭥ = Volume</p>
           </div>
-          <div class="hint-section">
-            <span class="hint-icon">🖐️</span>
-            <div class="hint-content">
-              <strong>Left Hand</strong>
-              <p>Pinch + ⭤ = Crossfader</p>
-            </div>
+        </div>
+        <div class="hint-section">
+          <span class="hint-icon">🖐️</span>
+          <div class="hint-content">
+            <strong>Left Hand</strong>
+            <p>Pinch + ⭤ = Crossfader</p>
           </div>
-          <div class="hint-section">
-            <span class="hint-icon">✊</span>
-            <div class="hint-content">
-              <strong>Fist Gestures</strong>
-              <p>Right = Bass | Left = Treble</p>
-            </div>
+        </div>
+        <div class="hint-section">
+          <span class="hint-icon">✊</span>
+          <div class="hint-content">
+            <strong>Fist Gestures</strong>
+            <p>Right = Bass | Left = Treble</p>
           </div>
         </div>
       </div>
     </div>
 
-    <button id="edit-cues-btn" class="cue-panel-toggle" type="button">Edit Cues</button>
+    <!-- Bottom DJ console -->
+    <div id="track-panel">
+      <section class="console-deck console-deck-a" aria-label="Deck A">
+        <div class="track-control track-a">
+          <label>🟢 Track A:</label>
+          <input type="file" id="track-a-input" accept="audio/*">
+        </div>
+        <div class="waveform waveform-a" data-deck="A">
+          <div class="waveform-label">Full track</div>
+          <canvas class="waveform-overview-canvas" aria-label="Track A overview"></canvas>
+          <div class="waveform-times">
+            <span class="waveform-start">0:00</span>
+            <span class="waveform-remaining">−0:00</span>
+            <span class="waveform-total">0:00</span>
+          </div>
+          <div class="waveform-detail" role="img" aria-label="Track A waveform"></div>
+          <div class="waveform-times">
+            <span class="waveform-window-start">—</span>
+            <span class="waveform-elapsed">0:00</span>
+            <span class="waveform-window-end">—</span>
+          </div>
+          <div class="waveform-status"></div>
+        </div>
+        <button id="play-track-a-btn" class="play-all-btn">▶️ Play A</button>
+      </section>
+
+      <section class="console-mixer" aria-label="Mixer">
+        <div class="brand-header">
+          <h1 class="brand-name">Lumaire</h1>
+          <p class="brand-tagline">A DJ controller you play in mid-air</p>
+        </div>
+        <div class="mixer-hud-wrap">
+          <canvas id="mixer-hud" aria-hidden="true"></canvas>
+          <div class="mixer-hits">
+            <div id="bass-display" class="status-display bass mixer-hit-eq">Bass: 0dB</div>
+            <div id="master-volume-display" class="status-display master mixer-hit-master">Master: 70%</div>
+            <div id="treble-display" class="status-display treble mixer-hit-eq">Treble: 0dB</div>
+            <div id="crossfader-display" class="status-display crossfader mixer-hit-xfade">Crossfader: 50%</div>
+          </div>
+        </div>
+        <button id="edit-cues-btn" class="cue-panel-toggle" type="button">Edit Cues</button>
+      </section>
+
+      <section class="console-deck console-deck-b" aria-label="Deck B">
+        <div class="track-control track-b">
+          <label>🔴 Track B:</label>
+          <input type="file" id="track-b-input" accept="audio/*">
+        </div>
+        <div class="waveform waveform-b" data-deck="B">
+          <div class="waveform-label">Full track</div>
+          <canvas class="waveform-overview-canvas" aria-label="Track B overview"></canvas>
+          <div class="waveform-times">
+            <span class="waveform-start">0:00</span>
+            <span class="waveform-remaining">−0:00</span>
+            <span class="waveform-total">0:00</span>
+          </div>
+          <div class="waveform-detail" role="img" aria-label="Track B waveform"></div>
+          <div class="waveform-times">
+            <span class="waveform-window-start">—</span>
+            <span class="waveform-elapsed">0:00</span>
+            <span class="waveform-window-end">—</span>
+          </div>
+          <div class="waveform-status"></div>
+        </div>
+        <button id="play-track-b-btn" class="play-all-btn">▶️ Play B</button>
+      </section>
+    </div>
 
     <aside id="cue-panel" class="cue-panel" hidden>
       <div class="cue-panel-header">

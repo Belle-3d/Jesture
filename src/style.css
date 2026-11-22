@@ -11,6 +11,12 @@ body {
   font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 #output_canvas {
   position: absolute;
   top: 0;
@@ -24,10 +30,11 @@ body {
 .brand-header {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 4px;
-  padding: 8px 0;
-  margin-bottom: 8px;
+  padding: 4px 0 8px;
+  margin-bottom: 0;
 }
 
 .brand-name {
@@ -58,7 +65,7 @@ body {
 /* On small screens reduce further and hide tagline to save space */
 @media (max-width: 900px) {
   .brand-header {
-    padding: 6px 0;
+    padding: 4px 0 6px;
   }
   .brand-name {
     font-size: 16px;
@@ -66,26 +73,153 @@ body {
   .brand-tagline {
     display: none;
   }
+
+  .hints {
+    top: 8px;
+    right: 8px;
+    width: min(300px, calc(100vw - 16px));
+  }
+
+  #track-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    max-height: min(52vh, 560px);
+    overflow-y: auto;
+    gap: 10px;
+  }
+
+  .console-deck,
+  .console-mixer {
+    overflow: visible;
+  }
+
+  .waveform-detail {
+    height: 88px;
+  }
 }
 
-/* DJ Control Panel - Premium Glass Effect */
+@media (max-height: 700px) {
+  #track-panel {
+    max-height: min(48vh, 340px);
+    padding: 8px 10px 10px;
+  }
+
+  .waveform-overview-canvas {
+    height: 28px;
+  }
+
+  .waveform-detail {
+    height: 72px;
+  }
+}
+
+/* Bottom DJ console — decks left/right, mixer centre */
 #track-panel {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(18, 18, 18, 0.90);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 18px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  max-height: min(52vh, 480px);
+  min-height: 300px;
+  padding: 10px 12px 12px;
+  overflow: hidden;
   color: #fafafa;
   z-index: 1000;
-  min-width: 340px;
-  max-width: 420px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  background: rgba(18, 18, 18, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px 18px 0 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: none;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.console-deck,
+.console-mixer {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.console-deck {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.console-mixer {
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.mixer-hud-wrap {
+  position: relative;
+  flex: 1 1 250px;
+  min-height: 250px;
+  height: 250px;
+  min-width: 0;
+}
+
+#mixer-hud {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mixer-hits {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 40px 40px 40px 1fr;
+  grid-template-rows: minmax(0, 1fr) 58px;
+  gap: 4px;
+  padding: 4px 8px 8px;
+  pointer-events: none;
+}
+
+.mixer-hits .status-display {
+  pointer-events: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  color: transparent;
+  background: transparent;
+  border-color: transparent;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.mixer-hit-eq.bass {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mixer-hit-master {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.mixer-hit-eq.treble {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.mixer-hit-xfade {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 /* Track Control Boxes */
@@ -93,9 +227,10 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
+  padding: 4px 8px;
   margin-bottom: 6px;
-  flex-wrap: nowrap; /* prevent wrapping so label and input stay on one line */
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 14px;
   border-left: 3px solid rgba(255, 255, 255, 0.2);
@@ -116,13 +251,13 @@ body {
 
 .track-control label {
   font-size: 13px;
-  min-width: 86px;    /* slightly larger so "Track A" doesn't wrap */
+  min-width: 86px;
   display: inline-block;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.9);
   letter-spacing: 0.3px;
-  white-space: nowrap; /* keep the label text on one line */
+  white-space: nowrap;
 }
 
 .track-control.track-a label {
@@ -162,8 +297,10 @@ body {
 
 /* Scrolling waveform under each deck. Detail shows 24 seconds, playhead centered. */
 .waveform {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   padding: 8px 8px 6px;
+  min-width: 0;
+  flex: 1 1 auto;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -283,6 +420,7 @@ body {
 /* Play All Button - Subtle Premium */
 .play-all-btn {
   width: 100%;
+  flex-shrink: 0;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
   color: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -292,7 +430,7 @@ body {
   font-weight: 600;
   font-size: 14px;
   transition: all 0.2s ease;
-  margin: 8px 0;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 2px;
 }
@@ -321,14 +459,18 @@ body {
 .status-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 0;
+}
+
+.status-row-crossfader .status-display {
+  min-width: 0;
 }
 
 .status-display {
   font-size: 12px;
   padding: 6px 8px;
   border-radius: 6px;
-  min-width: 120px;
+  min-width: 0;
   box-sizing: border-box;
   flex: 1;
   color: rgba(255, 255, 255, 0.85);
@@ -337,6 +479,11 @@ body {
   text-overflow: ellipsis;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.console-mixer .status-display.bass,
+.console-mixer .status-display.treble {
+  text-align: center;
 }
 
 .status-display.master {
@@ -359,13 +506,32 @@ body {
   border-color: rgba(168, 197, 217, 0.2);
 }
 
-/* Hints Section - Collapsible */
+.mixer-hits .status-display,
+.mixer-hits .status-display.master,
+.mixer-hits .status-display.crossfader,
+.mixer-hits .status-display.bass,
+.mixer-hits .status-display.treble {
+  color: transparent;
+  background: transparent;
+  border-color: transparent;
+  font-size: 0;
+}
+
+/* Gesture Controls — top-right dropdown */
 .hints {
-  margin-top: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1100;
+  width: min(320px, calc(100vw - 32px));
+  margin-top: 0;
+  background: rgba(18, 18, 18, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 .hints-header {
@@ -456,11 +622,10 @@ body {
 }
 
 .cue-panel-toggle {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
+  position: static;
+  align-self: center;
   z-index: 1100;
-  margin: 0;
+  margin: 4px 0 0;
   padding: 6px 10px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
@@ -469,6 +634,7 @@ body {
   font: 600 11px/1 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: 0.4px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .cue-panel {

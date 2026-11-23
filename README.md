@@ -1,6 +1,6 @@
 <div align="center">
 
-![Jesture: a DJ controller you play in mid-air](public/banner.png)
+![Jesture: DJ with gestures](public/banner.png)
 
 # Jesture
 

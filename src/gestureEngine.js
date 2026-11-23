@@ -66,16 +66,31 @@ export class GestureEngine {
             const label = rawLabel === 'Left' ? 'Right' : 'Left';
 
             // 1. Pinch Detection
-            const pinches = this.detectPinches(landmarks);
+            const detectedPinches = this.detectPinches(landmarks);
 
-            // 2. Open vs Fist. Cue poses must hold for a few frames so the
-            // tag and the trigger do not flicker, and a single missed frame
-            // cannot latch a point as a fist.
+            // 2. Open vs Fist. A point or peace sign still outranks a fist,
+            // but a closed hand wins over pinch: thumb-to-finger contact
+            // inside a fist must not move volume, the crossfader, or play.
             const rawFinger = this.detectFingerCount(landmarks);
             const fingerPose = this.settleFingerPose(label, rawFinger);
-            const gesture = this.stableGesture(label, this.curledFingerCount(landmarks), fingerPose);
+            const curledCount = this.curledFingerCount(landmarks);
+            const rawPinch = detectedPinches.index || detectedPinches.middle;
+            // A real pinch keeps the index out past the knuckle. A fist curls
+            // that fingertip back into the palm, which is the only pinch-like
+            // contact that should be ignored.
+            const indexInPalm = this.indexInPalm(landmarks);
+            const openPinch = rawPinch && !indexInPalm;
+            const gesture = this.stableGesture(label, curledCount, fingerPose, openPinch);
+            const fistBlocksPinch = gesture === 'Closed'
+                || this.poseHold[label]
+                || this.eqControlState[label].isFist
+                || (indexInPalm && curledCount >= 3);
+            const pinches = fistBlocksPinch
+                ? { index: false, middle: false }
+                : detectedPinches;
+            if (fistBlocksPinch) this.cancelPinch(this.controlState[label]);
 
-            const pinchActive = gesture === 'Open' && (pinches.index || pinches.middle);
+            const pinchActive = !fistBlocksPinch && gesture === 'Open' && (pinches.index || pinches.middle);
             const rawCue = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
             const cuePose = rawCue && !pinchActive && gesture === 'Open' && !this.eqControlState[label].isFist;
             seenHands.add(label);
@@ -100,7 +115,7 @@ export class GestureEngine {
             let controlType = label === 'Right' ? 'Master Volume' : 'Crossfader';
             let isControlling = controlState.isPinching && controlState.hasMoved;
 
-            if (gesture === 'Closed' && !pinches.index && !cuePose) {
+            if ((gesture === 'Closed' || eqState.isFist) && !cuePose) {
                 controlType = label === 'Right' ? 'Bass (Fist)' : 'Treble (Fist)';
                 isControlling = eqState.isFist;
             }
@@ -198,16 +213,30 @@ export class GestureEngine {
         return this.stableFinger[label];
     }
 
+    indexInPalm(landmarks) {
+        const wrist = landmarks[0];
+        const tip = landmarks[8];
+        const knuckle = landmarks[5];
+        const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+        const distKnuckle = Math.hypot(knuckle.x - wrist.x, knuckle.y - wrist.y);
+        return distTip < distKnuckle;
+    }
+
     /**
-     * A point or peace sign is not a fist, and it releases a latched fist.
-     * A real fist must stay closed for several frames before it latches, then
-     * it stays closed until the hand opens or a cue pose holds.
+     * A clean point or peace sign releases a latched fist. An open pinch
+     * (index still out) is not a fist and must not be latched as one.
+     * A fist that is already held stays closed until the hand opens, so
+     * thumb-to-finger contact inside the fist cannot become a pinch.
      */
-    stableGesture(label, curledCount, fingerPose) {
+    stableGesture(label, curledCount, fingerPose, openPinch) {
         const cueLike = fingerPose === 'ONE_FINGER' || fingerPose === 'TWO_FINGERS';
-        if (cueLike) {
+        if (cueLike && !openPinch) {
             this.closedStreak[label] = 0;
             this.poseHold[label] = false;
+            return 'Open';
+        }
+        if (openPinch && !this.poseHold[label]) {
+            this.closedStreak[label] = 0;
             return 'Open';
         }
         if (curledCount >= 3) this.closedStreak[label] += 1;

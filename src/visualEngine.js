@@ -598,7 +598,7 @@ export class VisualEngine {
                 this.drawOverlayBadge(ctx, x, y - 18, deckTag, controlType.toUpperCase(), accent, 'center', 'bottom');
             }
 
-            if (hand.pinches && hand.pinches.index) {
+            if (hand.pinches && hand.pinches.index && !fistLabel) {
                 const indexTip = hand.landmarks[8];
                 const ix = (1 - indexTip.x) * dw + dx;
                 const iy = indexTip.y * dh + dy;

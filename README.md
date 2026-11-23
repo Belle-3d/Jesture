@@ -2,13 +2,17 @@
 
 ![Jesture: DJ with gestures](public/banner.png)
 
+## Story
+
+I am not a DJ. I do not have a single musical bone in my body. What I do love is the idea that your hands can steer sound in the air, the same way other gesture music projects have shown especially in the past year.
+
+When I found [Lumaire](https://github.com/sehgalbhavya/Lumaire) by [sehgalbhavya](https://github.com/sehgalbhavya), it clicked. Here was a clear two-deck mixer in the browser, driven by MediaPipe and a webcam. Lumaire began as a project in a multimodal interaction course at KTH Royal Institute of Technology, and it nailed the feeling of playing a mixer without touching hardware.
+
+Jesture is my extension of that foundation. Rather than pretend I would compose or produce tracks, the honest move was to **mix music that already exists**: load your own files, set cues on the waveform, crossfade between decks, and shape EQ with gestures. The fun is in the performance and the interface, not in making the songs from scratch.
+
+On top of Lumaire, Jesture adds a cue preparation panel, pink and green cue markers on each waveform, a redesigned console, and tighter gesture rules so a fist does not accidentally trigger play or a cue.
+
 # Jesture
-
-### A DJ controller you play in mid-air
-
-Mix two tracks with nothing but your hands and a webcam, right in the browser.
-
-**[Try the live demo](https://belle-3d.github.io/Jesture/)** · **[Watch the video](https://www.youtube.com/watch?v=3lUEl5AKHR8)**
 
 [![MediaPipe Hands](https://img.shields.io/badge/Hand%20tracking-MediaPipe-0A0A0A)](https://developers.google.com/mediapipe)
 [![Tone.js](https://img.shields.io/badge/Audio-Tone.js-0A0A0A)](https://tonejs.github.io)
@@ -16,18 +20,6 @@ Mix two tracks with nothing but your hands and a webcam, right in the browser.
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-0A0A0A?logo=javascript&logoColor=white)](https://developer.mozilla.org/docs/Web/JavaScript)
 
 </div>
-
----
-
-## The idea
-
-A DJ mixer is a wall of knobs and faders. Every one of them is something your hands already know how to do: pinch, slide, raise, clench.
-
-Jesture takes the hardware away and keeps the hands. A webcam tracks both of your hands in real time, and each gesture maps onto a control on a two-deck mixer. You pinch to start a track, slide to crossfade, and raise a fist to shape the EQ. There is nothing to install and nothing to plug in.
-
-The question behind it is simple: **can gestures in mid-air feel as direct as touching a real mixer?**
-
----
 
 ## Demo
 
@@ -58,20 +50,6 @@ Your left hand runs **Deck A** and the crossfader. Your right hand runs **Deck B
 | **Right hand** | Quick pinch | Play or pause Track B |
 | | Pinch and move up or down | Master volume |
 | | Make a fist and move up or down | Bass up or down |
-
-### No camera? Use the keyboard or mouse
-
-| Input | Action |
-|---|---|
-| `P` | Play or pause both tracks |
-| Hold `A` + `Space` | Play or pause Track A |
-| Hold `B` + `Space` | Play or pause Track B |
-| `↑` / `↓` | Master volume |
-| `←` / `→` | Crossfader |
-| Hold `T` + `↑` / `↓` | Treble |
-| Hold `B` + `↑` / `↓` | Bass |
-| Click Master, Bass or Treble | Nudge that value up (hold `Shift` to nudge it down) |
-| Click the Crossfader display | Jump the crossfader to that spot |
 
 ---
 

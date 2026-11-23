@@ -8,7 +8,7 @@
 
 Mix two tracks with nothing but your hands and a webcam, right in the browser.
 
-**[Try the live demo](https://sehgalbhavya.github.io/Jesture/)** · **[Watch the video](https://www.youtube.com/watch?v=3lUEl5AKHR8)**
+**[Try the live demo](https://belle-3d.github.io/Jesture/)** · **[Watch the video](https://www.youtube.com/watch?v=3lUEl5AKHR8)**
 
 [![MediaPipe Hands](https://img.shields.io/badge/Hand%20tracking-MediaPipe-0A0A0A)](https://developers.google.com/mediapipe)
 [![Tone.js](https://img.shields.io/badge/Audio-Tone.js-0A0A0A)](https://tonejs.github.io)
@@ -37,7 +37,7 @@ The question behind it is simple: **can gestures in mid-air feel as direct as to
 
 </div>
 
-To try it yourself, open the **[live demo](https://sehgalbhavya.github.io/Jesture/)** in Chrome or Edge:
+To try it yourself, open the **[live demo](https://belle-3d.github.io/Jesture/)** in Chrome or Edge:
 
 1. Allow camera access when the browser asks.
 2. Click anywhere on the page once to switch on audio (browsers require this).
@@ -117,7 +117,7 @@ A few details worth knowing:
 You need [Node.js](https://nodejs.org) 20 or newer and a webcam (optional, thanks to the keyboard controls).
 
 ```bash
-git clone https://github.com/sehgalbhavya/Jesture.git
+git clone https://github.com/Belle-3d/Jesture.git
 cd Jesture
 npm install
 npm run dev

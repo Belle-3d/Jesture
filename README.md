@@ -21,14 +21,6 @@ On top of Lumaire, Jesture adds a cue preparation panel, pink and green cue mark
 
 </div>
 
-## Demo
-
-<div align="center">
-
-[![Watch the Jesture demo on YouTube](https://img.youtube.com/vi/3lUEl5AKHR8/maxresdefault.jpg)](https://www.youtube.com/watch?v=3lUEl5AKHR8)
-
-</div>
-
 To try it yourself, open the **[live demo](https://belle-3d.github.io/Jesture/)** in Chrome or Edge:
 
 1. Allow camera access when the browser asks.
